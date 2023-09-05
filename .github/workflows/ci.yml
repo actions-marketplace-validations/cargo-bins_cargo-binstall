@@ -43,7 +43,7 @@ jobs:
       CARGO_BUILD_TARGET: ${{ matrix.target }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: ./.github/actions/just-setup
       env:
         # just-setup use binstall to install sccache,
@@ -78,7 +78,7 @@ jobs:
     env:
       CARGO_BUILD_TARGET: ${{ matrix.target }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: ./.github/actions/just-setup
       with:
         tools: cargo-hack
@@ -109,7 +109,7 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: ./.github/actions/just-setup
 
     - run: just toolchain rustfmt,clippy
