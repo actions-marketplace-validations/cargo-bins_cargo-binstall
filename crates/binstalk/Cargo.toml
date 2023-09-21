@@ -14,7 +14,7 @@ async-trait = "0.1.68"
 base16 = "0.2.1"
 binstalk-downloader = { version = "0.7.0", path = "../binstalk-downloader", default-features = false, features = ["gh-api-client"] }
 binstalk-types = { version = "0.5.0", path = "../binstalk-types" }
-cargo_toml = "0.15.3"
+cargo_toml = "0.16.2"
 command-group = { version = "2.1.0", features = ["with-tokio"] }
 compact_str = { version = "0.7.0", features = ["serde"] }
 detect-targets = { version = "0.1.9", path = "../detect-targets" }
