@@ -3,14 +3,14 @@ name: Upgrade transitive dependencies
 on:
   workflow_dispatch: # Allow running on-demand
   schedule:
-    - cron: '0 3 * * 5'
+    - cron: "0 3 * * 5"
 
 jobs:
   upgrade:
     name: Upgrade & Open Pull Request
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
         with:
           persist-credentials: true
 
@@ -45,4 +45,4 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr create --base main --fill --label 'PR: dependencies'
+          gh pr create --base main --label 'PR: dependencies' --title 'dep: Upgrade transitive dependencies' --body 'Update dependencies' --head $(git branch --show-current)

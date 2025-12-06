@@ -11,14 +11,8 @@ fn succeeds(res: io::Result<Child>) -> bool {
         .unwrap_or(false)
 }
 
-fn main() {
-    let handle = thread::spawn(|| {
-        println!("cargo:rerun-if-changed=build.rs");
-        println!("cargo:rerun-if-changed=manifest.rc");
-        println!("cargo:rerun-if-changed=windows.manifest");
-
-        embed_resource::compile("manifest.rc", embed_resource::NONE);
-    });
+fn emit_vergen_info() {
+    use vergen_gitcl::*;
 
     let git = Command::new("git").arg("--version").spawn();
 
@@ -29,16 +23,50 @@ fn main() {
     // should exists.
     let is_git_repo = Path::new("../../.git").exists();
 
-    let mut builder = vergen::EmitBuilder::builder();
-    builder.all_build().all_cargo().all_rustc();
+    Emitter::default()
+        .fail_on_error()
+        .add_instructions(&BuildBuilder::default().build_date(true).build().unwrap())
+        .unwrap()
+        .add_instructions(&CargoBuilder::default().features(true).build().unwrap())
+        .unwrap()
+        .add_instructions(
+            &RustcBuilder::default()
+                .semver(true)
+                .commit_hash(true)
+                .llvm_version(true)
+                .build()
+                .unwrap(),
+        )
+        .unwrap()
+        .add_instructions(&{
+            let mut gitcl_builder = GitclBuilder::default();
+            if is_git_repo && succeeds(git) {
+                // sha(false) means enable the default sha output but not the short output
+                gitcl_builder.commit_date(true).sha(false);
+            }
+            gitcl_builder.build().unwrap()
+        })
+        .unwrap()
+        .emit()
+        .unwrap();
+}
 
-    if is_git_repo && succeeds(git) {
-        builder.all_git();
-    } else {
-        builder.disable_git();
-    }
+const RERUN_INSTRUCTIONS: &str = "cargo:rerun-if-changed=build.rs
+cargo:rerun-if-changed=manifest.rc
+cargo:rerun-if-changed=windows.manifest";
 
-    builder.emit().unwrap();
+fn main() {
+    thread::scope(|s| {
+        let handle = s.spawn(|| {
+            println!("{RERUN_INSTRUCTIONS}");
 
-    handle.join().unwrap();
+            embed_resource::compile("manifest.rc", embed_resource::NONE)
+                .manifest_required()
+                .unwrap();
+        });
+
+        emit_vergen_info();
+
+        handle.join().unwrap();
+    });
 }

@@ -1,10 +1,15 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
-pub mod args;
-pub mod bin_util;
-pub mod entry;
-pub mod git_credentials;
-pub mod install_path;
-pub mod logging;
-pub mod manifests;
-pub mod ui;
+mod args;
+mod bin_util;
+mod entry;
+mod gh_token;
+mod git_credentials;
+mod initialise;
+mod logging;
+mod main_impl;
+mod settings;
+mod signal;
+mod ui;
+
+pub use main_impl::do_main;

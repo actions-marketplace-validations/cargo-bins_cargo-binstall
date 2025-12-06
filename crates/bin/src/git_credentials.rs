@@ -1,12 +1,9 @@
-use std::{
-    env, fs,
-    path::{Path, PathBuf},
-};
+use std::{env, fs, path::PathBuf};
 
-use compact_str::CompactString;
 use dirs::home_dir;
+use zeroize::Zeroizing;
 
-pub fn try_from_home() -> Option<CompactString> {
+pub fn try_from_home() -> Option<Zeroizing<Box<str>>> {
     if let Some(mut home) = home_dir() {
         home.push(".git-credentials");
         if let Some(cred) = from_file(home) {
@@ -15,7 +12,9 @@ pub fn try_from_home() -> Option<CompactString> {
     }
 
     if let Some(home) = env::var_os("XDG_CONFIG_HOME") {
-        let home = Path::new(&home).join("git/credentials");
+        let mut home = PathBuf::from(home);
+        home.push("git/credentials");
+
         if let Some(cred) = from_file(home) {
             return Some(cred);
         }
@@ -24,12 +23,12 @@ pub fn try_from_home() -> Option<CompactString> {
     None
 }
 
-fn from_file(path: PathBuf) -> Option<CompactString> {
-    fs::read_to_string(path)
-        .ok()?
+fn from_file(path: PathBuf) -> Option<Zeroizing<Box<str>>> {
+    Zeroizing::new(fs::read_to_string(path).ok()?)
         .lines()
         .find_map(from_line)
-        .map(CompactString::from)
+        .map(Box::<str>::from)
+        .map(Zeroizing::new)
 }
 
 fn from_line(line: &str) -> Option<&str> {

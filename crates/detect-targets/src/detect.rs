@@ -7,9 +7,11 @@ use std::{
 
 use cfg_if::cfg_if;
 use tokio::process::Command;
+#[cfg(feature = "tracing")]
+use tracing::debug;
 
 cfg_if! {
-    if #[cfg(target_os = "linux")] {
+    if #[cfg(any(target_os = "linux",  target_os = "android"))] {
         mod linux;
     } else if #[cfg(target_os = "macos")] {
         mod macos;
@@ -32,42 +34,32 @@ cfg_if! {
 /// Check [this issue](https://github.com/ryankurte/cargo-binstall/issues/155)
 /// for more information.
 pub async fn detect_targets() -> Vec<String> {
-    #[cfg(target_os = "linux")]
-    {
-        if let Some(target) = get_target_from_rustc().await {
+    let target = get_target_from_rustc().await;
+    #[cfg(feature = "tracing")]
+    debug!("get_target_from_rustc()={target:?}");
+    let target = target.unwrap_or_else(|| {
+        let target = guess_host_triple::guess_host_triple();
+        #[cfg(feature = "tracing")]
+        debug!("guess_host_triple::guess_host_triple()={target:?}");
+        target.unwrap_or(crate::TARGET).to_string()
+    });
+
+    cfg_if! {
+        if #[cfg(target_os = "macos")] {
             let mut targets = vec![target];
-
-            if targets[0].contains("gnu") {
-                targets.push(targets[0].replace("gnu", "musl"));
-            } else if targets[0].contains("android") {
-                targets.push(targets[0].replace("android", "musl"));
-            }
-
+            targets.extend(macos::detect_alternative_targets(&targets[0]).await);
             targets
+        } else if #[cfg(target_os = "windows")] {
+            let mut targets = vec![target];
+            targets.extend(windows::detect_alternative_targets(&targets[0]));
+            targets
+        } else if #[cfg(any(target_os = "linux", target_os = "android"))] {
+            // Linux is a bit special, since the result from `guess_host_triple`
+            // might be wrong about whether glibc or musl is used.
+            linux::detect_targets(target).await
         } else {
-            linux::detect_targets_linux().await
+            vec![target]
         }
-    }
-
-    #[cfg(not(target_os = "linux"))]
-    {
-        let target = get_target_from_rustc().await.unwrap_or_else(|| {
-            guess_host_triple::guess_host_triple()
-                .unwrap_or(crate::TARGET)
-                .to_string()
-        });
-
-        let mut targets = vec![target];
-
-        cfg_if! {
-            if #[cfg(target_os = "macos")] {
-                targets.extend(macos::detect_alternative_targets(&targets[0]).await);
-            } else if #[cfg(target_os = "windows")] {
-                targets.extend(windows::detect_alternative_targets(&targets[0]));
-            }
-        }
-
-        targets
     }
 }
 

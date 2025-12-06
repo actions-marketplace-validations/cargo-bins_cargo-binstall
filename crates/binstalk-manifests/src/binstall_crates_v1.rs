@@ -43,7 +43,8 @@ where
     Iter: IntoIterator<Item = T>,
     Data: From<T>,
 {
-    let mut file = FileLock::new_exclusive(create_if_not_exist(path.as_ref())?)?;
+    let path = path.as_ref();
+    let mut file = create_if_not_exist(path)?;
     // Move the cursor to EOF
     file.seek(io::SeekFrom::End(0))?;
 
@@ -166,7 +167,7 @@ impl Records {
 
     pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, Error> {
         let mut this = Self {
-            file: FileLock::new_exclusive(create_if_not_exist(path.as_ref())?)?,
+            file: create_if_not_exist(path.as_ref())?,
             data: BTreeSet::default(),
         };
         this.load_impl()?;
@@ -211,6 +212,11 @@ impl Records {
 
     pub fn remove(&mut self, value: impl AsRef<str>) -> bool {
         self.data.remove(value.as_ref())
+    }
+
+    /// Remove crates that `f(&data.crate_info)` returns `false`.
+    pub fn retain(&mut self, mut f: impl FnMut(&CrateInfo) -> bool) {
+        self.data.retain(|data| f(&data.crate_info))
     }
 
     pub fn take(&mut self, value: impl AsRef<str>) -> Option<CrateInfo> {

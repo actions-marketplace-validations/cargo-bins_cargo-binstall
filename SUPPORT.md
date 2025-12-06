@@ -1,6 +1,5 @@
 # Support for `cargo binstall`
 
-
 `binstall` works with existing CI-built binary outputs, with configuration via `[package.metadata.binstall]` keys in the relevant crate manifest.
 When configuring `binstall` you can test against a local manifest with `--manifest-path=PATH` argument to use the crate and manifest at the provided `PATH`, skipping crate discovery and download.
 
@@ -14,13 +13,19 @@ As an example, the configuration would be like this:
 pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }-v{ version }{ archive-suffix }"
 bin-dir = "{ name }-{ target }-v{ version }/{ bin }{ binary-ext }"
 pkg-fmt = "tgz"
+disabled-strategies = ["quick-install", "compile"]
 ```
 
 With the following configuration keys:
 
 - `pkg-url` specifies the package download URL for a given target/version, templated
 - `bin-dir` specifies the binary path within the package, templated (with an `.exe` suffix on windows)
-- `pkg-fmt` overrides the package format for download/extraction (defaults to: `tgz`)
+- `pkg-fmt` overrides the package format for download/extraction (defaults to: `tgz`), check [the documentation](https://docs.rs/binstalk-types/latest/binstalk_types/cargo_toml_binstall/enum.PkgFmt.html) for all supported formats.
+- `disabled-strategies` to disable specific strategies (e.g. `crate-meta-data` for trying to find pre-built on your repository,
+  `quick-install` for pre-built from third-party cargo-bins/cargo-quickinstall, `compile` for falling back to `cargo-install`)
+  for your crate (defaults to empty array).
+  If `--strategies` is passed on the command line, then the `disabled-strategies` in `package.metadata` will be ignored.
+  Otherwise, the `disabled-strategies` in `package.metadata` and `--disable-strategies` will be merged.
 
 
 `pkg-url` and `bin-dir` are templated to support different names for different versions / architectures / etc.
@@ -31,7 +36,7 @@ with the following variables available:
 - `version` is the crate version (per `--version` and the crate manifest)
 - `repo` is the repository linked in `Cargo.toml`
 - `bin` is the name of a specific binary, inferred from the crate configuration
-- `target` is the rust target name (defaults to your architecture, but can be overridden using the `--target` command line option if required()
+- `target` is the rust target name (defaults to your architecture, but can be overridden using the `--target` command line option if required)
 - `archive-suffix` is the filename extension of the package archive format that includes the prefix `.`, e.g. `.tgz` for tgz or `.exe`/`""` for bin.
 - `archive-format` is the soft-deprecated filename extension of the package archive format that does not include the prefix `.`, e.g. `tgz` for tgz or `exe`/`""` for bin.
 - `binary-ext` is the string `.exe` if the `target` is for Windows, or the empty string otherwise
@@ -49,7 +54,7 @@ with the following variables available:
 
 `pkg-url`, `pkg-fmt` and `bin-dir` can be overridden on a per-target basis if required, for example, if your `x86_64-pc-windows-msvc` builds use `zip` archives this could be set via:
 
-```
+```toml
 [package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
 pkg-fmt = "zip"
 ```
@@ -77,8 +82,8 @@ on windows and empty on other platforms).
 
 The default value for `pkg-url` will depend on the repository of the package.
 
-It is set up to work with GitHub releases, GitLab releases, bitbucket downloads
-and source forge downloads.
+It is set up to work with GitHub releases, GitLab releases, bitbucket downloads,
+source forge downloads and Codeberg releases.
 
 If your package already uses any of these URLs, you shouldn't need to set anything.
 
@@ -134,6 +139,11 @@ The URLs also have `/download` appended as per SourceForge's schema.
 Binary must be uploaded to the "File" page of your project, under the directory
 `binaries/v{ version }`.
 
+#### for Codeberg
+
+- `{ repo }/releases/download/{ version }/`
+- `{ repo }/releases/download/v{ version }/`
+
 #### Others
 
 For all other situations, `binstall` does not provide a default `pkg-url` and
@@ -173,4 +183,4 @@ Were the package to contain binaries in the form `name-target[.exe]`, this could
 bin-dir = "{ bin }-{ target }{ binary-ext }"
 ```
 
-Which provides a binary path of: `sx128x-util-x86_64-unknown-linux-gnu[.exe]`. It is worth noting that binary names are inferred from the crate, so long as cargo builds them this _should_ just work.
+Which provides a binary path of: `sx128x-util-x86_64-unknown-linux-gnu[.exe]`. It is worth noting that binary names are inferred from the crate, so as long as cargo builds them this _should_ just work.

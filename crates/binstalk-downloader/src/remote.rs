@@ -9,11 +9,11 @@ use bytes::Bytes;
 use futures_util::Stream;
 use httpdate::parse_http_date;
 use reqwest::{
-    header::{HeaderMap, RETRY_AFTER},
+    header::{HeaderMap, HeaderValue, RETRY_AFTER},
     Request,
 };
 use thiserror::Error as ThisError;
-use tracing::{debug, info};
+use tracing::{debug, info, instrument};
 
 pub use reqwest::{header, Error as ReqwestError, Method, StatusCode};
 pub use url::Url;
@@ -30,6 +30,11 @@ pub use request_builder::{Body, RequestBuilder, Response};
 mod tls_version;
 pub use tls_version::TLSVersion;
 
+#[cfg(feature = "hickory-dns")]
+mod resolver;
+#[cfg(feature = "hickory-dns")]
+use resolver::TrustDnsResolver;
+
 #[cfg(feature = "json")]
 pub use request_builder::JsonError;
 
@@ -37,6 +42,7 @@ const MAX_RETRY_DURATION: Duration = Duration::from_secs(120);
 const MAX_RETRY_COUNT: u8 = 3;
 const DEFAULT_RETRY_DURATION_FOR_RATE_LIMIT: Duration = Duration::from_millis(200);
 const RETRY_DURATION_FOR_TIMEOUT: Duration = Duration::from_millis(200);
+#[allow(dead_code)]
 const DEFAULT_MIN_TLS: TLSVersion = TLSVersion::TLS_1_2;
 
 #[derive(Debug, ThisError)]
@@ -80,13 +86,17 @@ pub struct Client(Arc<Inner>);
 
 #[cfg_attr(not(feature = "__tls"), allow(unused_variables, unused_mut))]
 impl Client {
-    /// * `per_millis` - The duration (in millisecond) for which at most
-    ///   `num_request` can be sent, itcould be increased if rate-limit
-    ///   happens.
-    /// * `num_request` - maximum number of requests to be processed for
-    ///   each `per` duration.
+    /// Construct a new downloader client
     ///
-    /// The Client created would use at least tls 1.2
+    /// * `per_millis` - The duration (in millisecond) for which at most
+    ///   `num_request` can be sent. Increase it if rate-limit errors
+    ///   happen.
+    /// * `num_request` - maximum number of requests to be processed for
+    ///   each `per_millis` duration.
+    ///
+    /// The [`reqwest::Client`] constructed has secure defaults, such as allowing
+    /// only TLS v1.2 and above, and disallowing plaintext HTTP altogether. If you
+    /// need more control, use the `from_builder` variant.
     pub fn new(
         user_agent: impl AsRef<str>,
         min_tls: Option<TLSVersion>,
@@ -94,50 +104,72 @@ impl Client {
         num_request: NonZeroU64,
         certificates: impl IntoIterator<Item = Certificate>,
     ) -> Result<Self, Error> {
-        fn inner(
-            user_agent: &str,
-            min_tls: Option<TLSVersion>,
-            per_millis: NonZeroU16,
-            num_request: NonZeroU64,
-            certificates: &mut dyn Iterator<Item = Certificate>,
-        ) -> Result<Client, Error> {
-            let mut builder = reqwest::ClientBuilder::new()
-                .user_agent(user_agent)
-                .https_only(true)
-                .tcp_nodelay(false);
-
-            #[cfg(feature = "__tls")]
-            {
-                let tls_ver = min_tls
-                    .map(|tls| tls.max(DEFAULT_MIN_TLS))
-                    .unwrap_or(DEFAULT_MIN_TLS);
-
-                builder = builder.min_tls_version(tls_ver.into());
-
-                for certificate in certificates {
-                    builder = builder.add_root_certificate(certificate.0);
-                }
-            }
-
-            let client = builder.build()?;
-
-            Ok(Client(Arc::new(Inner {
-                client: client.clone(),
-                service: DelayRequest::new(
-                    num_request,
-                    Duration::from_millis(per_millis.get() as u64),
-                    client,
-                ),
-            })))
-        }
-
-        inner(
-            user_agent.as_ref(),
-            min_tls,
+        Self::from_builder(
+            Self::default_builder(user_agent.as_ref(), min_tls, &mut certificates.into_iter()),
             per_millis,
             num_request,
-            &mut certificates.into_iter(),
         )
+    }
+
+    /// Constructs a default [`reqwest::ClientBuilder`].
+    ///
+    /// This may be used alongside [`Client::from_builder`] to start from reasonable
+    /// defaults, but still be able to customise the reqwest instance. Arguments are
+    /// as [`Client::new`], but without generic parameters.
+    pub fn default_builder(
+        user_agent: &str,
+        min_tls: Option<TLSVersion>,
+        certificates: &mut dyn Iterator<Item = Certificate>,
+    ) -> reqwest::ClientBuilder {
+        let mut builder = reqwest::ClientBuilder::new()
+            .user_agent(user_agent)
+            .https_only(true)
+            .tcp_nodelay(false);
+
+        #[cfg(feature = "hickory-dns")]
+        {
+            builder = builder.dns_resolver(Arc::new(TrustDnsResolver::default()));
+        }
+
+        #[cfg(feature = "__tls")]
+        {
+            let tls_ver = min_tls
+                .map(|tls| tls.max(DEFAULT_MIN_TLS))
+                .unwrap_or(DEFAULT_MIN_TLS);
+
+            builder = builder.min_tls_version(tls_ver.into());
+
+            for certificate in certificates {
+                builder = builder.add_root_certificate(certificate.0);
+            }
+        }
+
+        #[cfg(all(reqwest_unstable, feature = "http3"))]
+        {
+            builder = builder.http3_congestion_bbr().tls_early_data(true);
+        }
+
+        builder
+    }
+
+    /// Construct a custom client from a [`reqwest::ClientBuilder`].
+    ///
+    /// You may want to also use [`Client::default_builder`].
+    pub fn from_builder(
+        builder: reqwest::ClientBuilder,
+        per_millis: NonZeroU16,
+        num_request: NonZeroU64,
+    ) -> Result<Self, Error> {
+        let client = builder.build()?;
+
+        Ok(Client(Arc::new(Inner {
+            client: client.clone(),
+            service: DelayRequest::new(
+                num_request,
+                Duration::from_millis(per_millis.get() as u64),
+                client,
+            ),
+        })))
     }
 
     /// Return inner reqwest client.
@@ -145,7 +177,7 @@ impl Client {
         &self.0.client
     }
 
-    /// Return `Err(_)` for fatal error tht cannot be retried.
+    /// Return `Err(_)` for fatal error that cannot be retried.
     ///
     /// Return `Ok(ControlFlow::Continue(res))` for retryable error, `res`
     /// will contain the previous `Result<Response, ReqwestError>`.
@@ -154,12 +186,20 @@ impl Client {
     ///
     /// Return `Ok(ControlFlow::Break(response))` when succeeds and no need
     /// to retry.
+    #[instrument(
+        skip(self, url),
+        fields(
+            url = format_args!("{url}"),
+        ),
+    )]
     async fn do_send_request(
         &self,
         request: Request,
         url: &Url,
     ) -> Result<ControlFlow<reqwest::Response, Result<reqwest::Response, ReqwestError>>, ReqwestError>
     {
+        static HEADER_VALUE_0: HeaderValue = HeaderValue::from_static("0");
+
         let response = match self.0.service.call(request).await {
             Err(err) if err.is_timeout() || err.is_connect() => {
                 let duration = RETRY_DURATION_FOR_TIMEOUT;
@@ -176,7 +216,7 @@ impl Client {
         let status = response.status();
 
         let add_delay_and_continue = |response: reqwest::Response, duration| {
-            info!("Receiver status code {status}, will wait for {duration:#?} and retry");
+            info!("Received status code {status}, will wait for {duration:#?} and retry");
 
             self.0
                 .service
@@ -185,22 +225,37 @@ impl Client {
             Ok(ControlFlow::Continue(Ok(response)))
         };
 
-        match status {
-            // Delay further request on rate limit
-            StatusCode::SERVICE_UNAVAILABLE | StatusCode::TOO_MANY_REQUESTS => {
-                let duration = parse_header_retry_after(response.headers())
-                    .unwrap_or(DEFAULT_RETRY_DURATION_FOR_RATE_LIMIT)
-                    .min(MAX_RETRY_DURATION);
+        let headers = response.headers();
 
-                add_delay_and_continue(response, duration)
+        // Some server (looking at you, github GraphQL API) may returns a rate limit
+        // even when OK is returned or on other status code (e.g. 453 forbidden).
+        if let Some(duration) = parse_header_retry_after(headers) {
+            add_delay_and_continue(response, duration.min(MAX_RETRY_DURATION))
+        } else if headers.get("x-ratelimit-remaining") == Some(&HEADER_VALUE_0) {
+            let duration = headers
+                .get("x-ratelimit-reset")
+                .and_then(|value| {
+                    let secs = value.to_str().ok()?.parse().ok()?;
+                    Some(Duration::from_secs(secs))
+                })
+                .unwrap_or(DEFAULT_RETRY_DURATION_FOR_RATE_LIMIT)
+                .min(MAX_RETRY_DURATION);
+
+            add_delay_and_continue(response, duration)
+        } else {
+            match status {
+                // Delay further request on rate limit
+                StatusCode::SERVICE_UNAVAILABLE | StatusCode::TOO_MANY_REQUESTS => {
+                    add_delay_and_continue(response, DEFAULT_RETRY_DURATION_FOR_RATE_LIMIT)
+                }
+
+                // Delay further request on timeout
+                StatusCode::REQUEST_TIMEOUT | StatusCode::GATEWAY_TIMEOUT => {
+                    add_delay_and_continue(response, RETRY_DURATION_FOR_TIMEOUT)
+                }
+
+                _ => Ok(ControlFlow::Break(response)),
             }
-
-            // Delay further request on timeout
-            StatusCode::REQUEST_TIMEOUT | StatusCode::GATEWAY_TIMEOUT => {
-                add_delay_and_continue(response, RETRY_DURATION_FOR_TIMEOUT)
-            }
-
-            _ => Ok(ControlFlow::Break(response)),
         }
     }
 
@@ -236,6 +291,8 @@ impl Client {
         request: Request,
         error_for_status: bool,
     ) -> Result<reqwest::Response, Error> {
+        debug!("Downloading from: '{}'", request.url());
+
         self.send_request_inner(&request)
             .await
             .and_then(|response| {
@@ -312,8 +369,6 @@ impl Client {
         &self,
         url: Url,
     ) -> Result<impl Stream<Item = Result<Bytes, Error>>, Error> {
-        debug!("Downloading from: '{url}'");
-
         Ok(self.get(url).send(true).await?.bytes_stream())
     }
 
@@ -340,7 +395,7 @@ fn parse_header_retry_after(headers: &HeaderMap) -> Option<Duration> {
     let header = headers
         .get_all(RETRY_AFTER)
         .into_iter()
-        .last()?
+        .next_back()?
         .to_str()
         .ok()?;
 

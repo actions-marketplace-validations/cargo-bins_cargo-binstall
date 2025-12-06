@@ -19,13 +19,13 @@ use miette::Diagnostic;
 use serde::Deserialize;
 use thiserror::Error;
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Install {
     /// `cargo install` destination directory
     pub root: Option<PathBuf>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Http {
     /// HTTP proxy in libcurl format: "host:port"
     ///
@@ -53,6 +53,8 @@ pub enum Env {
 #[derive(Debug, Deserialize)]
 pub struct Registry {
     pub index: Option<CompactString>,
+    #[serde(rename = "replace-with")]
+    pub replace_with: Option<CompactString>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -71,7 +73,7 @@ pub struct Config {
 
 fn join_if_relative(path: Option<&mut PathBuf>, dir: &Path) {
     match path {
-        Some(path) if path.is_relative() => *path = dir.join(&path),
+        Some(path) if path.is_relative() => *path = dir.join(&*path),
         _ => (),
     }
 }
@@ -86,9 +88,9 @@ impl Config {
     }
 
     /// * `dir` - path to the dir where the config.toml is located.
-    ///           For relative path in the config, `Config::load_from_reader`
-    ///           will join the `dir` and the relative path to form the final
-    ///           path.
+    ///   For relative path in the config, `Config::load_from_reader`
+    ///   will join the `dir` and the relative path to form the final
+    ///   path.
     pub fn load_from_reader<R: io::Read>(
         mut reader: R,
         dir: &Path,
@@ -138,7 +140,7 @@ impl Config {
         fn inner(path: &Path) -> Result<Config, ConfigLoadError> {
             match File::open(path) {
                 Ok(file) => {
-                    let file = FileLock::new_shared(file)?;
+                    let file = FileLock::new_shared(file)?.set_file_path(path);
                     // Any regular file must have a parent dir
                     Config::load_from_reader(file, path.parent().unwrap())
                 }
@@ -148,6 +150,16 @@ impl Config {
         }
 
         inner(path.as_ref())
+    }
+
+    pub fn get_registry_index(&self, name: &str) -> Option<&str> {
+        let registry = self.registries.as_ref()?.get(name)?;
+
+        if let Some(name) = registry.replace_with.as_deref() {
+            self.get_registry_index(name)
+        } else {
+            registry.index.as_deref()
+        }
     }
 }
 
@@ -210,7 +222,7 @@ root = "/some/path"         # `cargo install` destination directory
         );
 
         let http = config.http.unwrap();
-        assert_eq!(http.proxy.unwrap(), CompactString::new_inline("host:port"));
+        assert_eq!(http.proxy.unwrap(), CompactString::const_new("host:port"));
         assert_eq!(http.timeout.unwrap(), 30);
         assert_eq!(http.cainfo.unwrap(), Path::new("root").join("cert.pem"));
 
@@ -218,7 +230,7 @@ root = "/some/path"         # `cargo install` destination directory
         assert_eq!(env.len(), 3);
         assert_eq!(
             env.get("ENV_VAR_NAME").unwrap(),
-            &Env::Value(CompactString::new("value"))
+            &Env::Value(CompactString::const_new("value"))
         );
         assert_eq!(
             env.get("ENV_VAR_NAME_2").unwrap(),

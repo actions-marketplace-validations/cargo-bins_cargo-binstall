@@ -1,28 +1,15 @@
-name: Open a release PR
+name: Open cargo-binstall release PR
 on:
   workflow_dispatch:
     inputs:
-      crate:
-        description: Crate to release
-        required: true
-        type: choice
-        options:
-          - bin
-          - binstalk
-          - binstalk-manifests
-          - binstalk-types
-          - binstalk-downloader
-          - detect-targets
-          - detect-wasi
-          - fs-lock
-          - normalize-path
-          - leon
-          - leon-macros
       version:
         description: Version to release
         required: true
         type: string
         default: patch
+
+permissions:
+  pull-requests: write
 
 jobs:
   make-release-pr:
@@ -32,7 +19,7 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - name: Configure toolchain
         run: |
           rustup toolchain install --profile minimal --no-self-update nightly
@@ -42,16 +29,19 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-release,cargo-semver-checks
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_RELEASE_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 
-      - uses: cargo-bins/release-pr@v2
+      - run: rustup toolchain install stable --no-self-update --profile minimal
+      - uses: cargo-bins/release-pr@v2.1.3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           version: ${{ inputs.version }}
-          crate-path: crates/${{ inputs.crate }}
+          crate-path: crates/bin
           pr-label: release
-          pr-release-notes: ${{ inputs.crate == 'bin' }}
+          pr-release-notes: true
           pr-template-file: .github/scripts/release-pr-template.ejs
-          check-semver: ${{ inputs.crate != 'bin' }}
+          check-semver: false
           check-package: true
         env:
           RUSTFLAGS: --cfg reqwest_unstable

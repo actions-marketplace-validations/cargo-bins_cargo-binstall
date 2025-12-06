@@ -1,0 +1,57 @@
+[package]
+name = "binstalk-registry"
+version = "0.11.30"
+edition = "2021"
+rust-version = "1.65.0"
+
+description = "The binstall toolkit for fetching package from arbitrary registry"
+repository = "https://github.com/cargo-bins/cargo-binstall"
+documentation = "https://docs.rs/binstalk-registry"
+authors = ["Jiahao_XU@outlook <Jiahao_XU@outlook.com>"]
+license = "Apache-2.0 OR MIT"
+
+[dependencies]
+async-trait = "0.1.88"
+base16 = "0.2.1"
+binstalk-downloader = { version = "0.13.29", path = "../binstalk-downloader", default-features = false, features = [
+    "json",
+] }
+binstalk-types = { version = "0.10.2", path = "../binstalk-types" }
+cargo-toml-workspace = { version = "7.0.7", path = "../cargo-toml-workspace" }
+compact_str = { version = "0.9.0", features = ["serde"] }
+leon = "3.0.0"
+miette = "7.0.0"
+normalize-path = { version = "0.2.1", path = "../normalize-path" }
+once_cell = "1.18.0"
+semver = { version = "1.0.17", features = ["serde"] }
+serde = { version = "1.0.163", features = ["derive"] }
+serde_json = "1.0.107"
+sha2 = "0.10.7"
+simple-git = { version = "0.2.4", optional = true }
+tempfile = "3.5.0"
+thiserror = "2.0.11"
+tokio = { version = "1.46.1", features = [
+    "rt",
+    "sync",
+], default-features = false }
+tracing = "0.1.43"
+url = "2.5.4"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+toml_edit = { version = "0.23.0", features = ["serde"] }
+binstalk-downloader = { version = "0.13.29", path = "../binstalk-downloader", default-features = false, features = [
+    "rustls",
+] }
+
+[features]
+git = ["simple-git"]
+
+rustls = ["simple-git?/rustls"]
+native-tls = ["simple-git?/native-tls"]
+
+crates_io_api = []
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--cfg", "docsrs"]
+all-features = true

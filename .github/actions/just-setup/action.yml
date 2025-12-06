@@ -18,22 +18,61 @@ inputs:
 runs:
   using: composite
   steps:
+  - name: Enable macOS developer mode for better
+    if: runner.os == 'macOS'
+    run: sudo spctl developer-mode enable-terminal
+    shell: bash
+
+  - name: Enable transparent huge page
+    if: runner.os == 'Linux'
+    run: echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
+    shell: bash
+
+  - name: Configure jemalloc (used by rustc) to use transparent huge page
+    if: runner.os == 'Linux'
+    run: echo "MALLOC_CONF=thp:always,metadata_thp:always" >> "$GITHUB_ENV"
+    shell: bash
+
+  - name: Exclude workspace and cargo/rustup home from windows defender
+    if: runner.os == 'Windows'
+    run: |
+      Add-MpPreference -ExclusionPath '${{ github.workspace }}'
+    shell: pwsh
+    
   - name: Add just to tools to install
-    run: echo "tools=just" >>$GITHUB_ENV
+    run: echo "tools=just" >>"$GITHUB_ENV"
     shell: bash
 
   - name: Add inputs.tools to tools to install
     if: inputs.tools != ''
     env:
       inputs_tools: ${{ inputs.tools }}
-    run: echo "tools=$tools,$inputs_tools" >>$GITHUB_ENV
+    run: echo "tools=$tools,$inputs_tools" >>"$GITHUB_ENV"
     shell: bash
 
+  - name: Upgrade toolchain
+    run: |
+      set -exuo pipefail
+      rustup update
+      rustup default stable
+    shell: bash
+
+  - name: Determine native target
+    run: |
+      set -euxo pipefail
+      DEFAULT_TOOLCHAIN="$(rustup default)"
+      RUNNER_TARGET="${DEFAULT_TOOLCHAIN#"stable-"}"
+      RUNNER_TARGET="${RUNNER_TARGET%" (default)"}"
+      echo "RUNNER_TARGET=$RUNNER_TARGET" >>"$GITHUB_ENV"
+    shell: bash
+    
   - name: Install tools
     uses: taiki-e/install-action@v2
     with:
       tool: ${{ env.tools }}
-
+    env:
+      CARGO_BUILD_TARGET: ${{ env.RUNNER_TARGET }}
+  
   - name: Install rust toolchains
     run: just toolchain
     shell: bash
@@ -53,7 +92,44 @@ runs:
       fi
     shell: bash
 
+  - run: just ci-install-deps
+    shell: bash
+
   - if: inputs.indexcache || inputs.buildcache
     uses: Swatinem/rust-cache@v2
+    with:
+      env-vars: "CARGO CC CFLAGS CXX CMAKE RUST JUST"
+      cache-workspace-crates: true
     env:
       RUSTFLAGS: ${{ steps.retrieve-rustflags.outputs.RUSTFLAGS }}
+
+  - name: Find zig location and create symlink to it in ~/.local/bin
+    if: env.JUST_USE_CARGO_ZIGBUILD
+    run: |
+      python_package_path=$(python3 -m site --user-site)
+      ln -s "${python_package_path}/ziglang/zig" "$HOME/.local/bin/zig"
+    shell: bash
+
+  - name: Cache make compiled
+    if: runner.os == 'macOS'
+    id: cache-make
+    uses: actions/cache@v4
+    with:
+      path: /usr/local/bin/make
+      key: ${{ runner.os }}-make-4.4.1
+
+  - name: Build and use make 4.4.1 on macOS, since cc requires make >=4.3
+    if: runner.os == 'macOS' && steps.cache-make.outputs.cache-hit != 'true'
+    run: |
+      curl "https://ftp.gnu.org/gnu/make/make-${MAKE_VERSION}.tar.gz" | tar xz
+      pushd "make-${MAKE_VERSION}"
+      ./configure
+      make -j 4
+      popd
+      cp -p "make-${MAKE_VERSION}/make" /usr/local/bin
+    env:
+      MAKE_VERSION: 4.4.1
+    shell: bash
+
+  - run: make -v
+    shell: bash

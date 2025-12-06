@@ -1,14 +1,13 @@
 use std::{
-    io,
+    fmt, io, ops,
     path::PathBuf,
     process::{ExitCode, ExitStatus, Termination},
 };
 
-use binstalk_downloader::{
-    download::DownloadError, gh_api_client::GhApiError, remote::Error as RemoteError,
-};
-use cargo_toml::Error as CargoTomlError;
+use binstalk_downloader::{download::DownloadError, remote::Error as RemoteError};
+use binstalk_fetchers::FetchError;
 use compact_str::CompactString;
+use itertools::Itertools;
 use miette::{Diagnostic, Report};
 use target_lexicon::ParseError as TargetTripleParseError;
 use thiserror::Error;
@@ -16,8 +15,12 @@ use tokio::task;
 use tracing::{error, warn};
 
 use crate::{
-    drivers::{InvalidRegistryError, RegistryError},
-    helpers::cargo_toml_workspace::LoadManifestFromWSError,
+    bins,
+    helpers::{
+        cargo_toml::Error as CargoTomlError,
+        cargo_toml_workspace::Error as LoadManifestFromWSError, gh_api_client::GhApiError,
+    },
+    registry::{InvalidRegistryError, RegistryError},
 };
 
 #[derive(Debug, Error)]
@@ -35,6 +38,90 @@ pub struct CrateContextError {
     #[source]
     #[diagnostic(transparent)]
     err: BinstallError,
+}
+
+#[derive(Debug)]
+pub struct CrateErrors(Box<[Box<CrateContextError>]>);
+
+impl CrateErrors {
+    fn iter(&self) -> impl Iterator<Item = &CrateContextError> + Clone {
+        self.0.iter().map(ops::Deref::deref)
+    }
+
+    fn get_iter_for<'a, T: 'a>(
+        &'a self,
+        f: fn(&'a CrateContextError) -> Option<T>,
+    ) -> Option<impl Iterator<Item = T> + 'a> {
+        let iter = self.iter().filter_map(f);
+
+        if iter.clone().next().is_none() {
+            None
+        } else {
+            Some(iter)
+        }
+    }
+}
+
+impl fmt::Display for CrateErrors {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0.iter().format(", "), f)
+    }
+}
+
+impl std::error::Error for CrateErrors {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.0.first().map(|e| e as _)
+    }
+}
+
+impl miette::Diagnostic for CrateErrors {
+    fn code<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
+        Some(Box::new("binstall::many_failure"))
+    }
+
+    fn severity(&self) -> Option<miette::Severity> {
+        self.iter().filter_map(miette::Diagnostic::severity).max()
+    }
+
+    fn help<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
+        Some(Box::new(
+            self.get_iter_for(miette::Diagnostic::help)?.format("\n"),
+        ))
+    }
+
+    fn url<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
+        Some(Box::new(
+            self.get_iter_for(miette::Diagnostic::url)?.format("\n"),
+        ))
+    }
+
+    fn source_code(&self) -> Option<&dyn miette::SourceCode> {
+        self.iter().find_map(miette::Diagnostic::source_code)
+    }
+
+    fn labels(&self) -> Option<Box<dyn Iterator<Item = miette::LabeledSpan> + '_>> {
+        let get_iter = || self.iter().filter_map(miette::Diagnostic::labels).flatten();
+
+        if get_iter().next().is_none() {
+            None
+        } else {
+            Some(Box::new(get_iter()))
+        }
+    }
+
+    fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>> {
+        Some(Box::new(
+            self.iter().map(|e| e as _).chain(
+                self.iter()
+                    .filter_map(miette::Diagnostic::related)
+                    .flatten(),
+            ),
+        ))
+    }
+
+    fn diagnostic_source(&self) -> Option<&dyn miette::Diagnostic> {
+        self.0.first().map(|err| &**err as _)
+    }
 }
 
 #[derive(Debug, Error)]
@@ -69,6 +156,25 @@ pub enum BinstallError {
     #[diagnostic(severity(info), code(binstall::user_abort))]
     UserAbort,
 
+    /// Package is not signed and policy requires it.
+    ///
+    /// - Code: `binstall::signature::invalid`
+    /// - Exit: 40
+    #[error("Crate {crate_name} is signed and package {package_name} failed verification")]
+    #[diagnostic(severity(error), code(binstall::signature::invalid))]
+    InvalidSignature {
+        crate_name: CompactString,
+        package_name: CompactString,
+    },
+
+    /// Package is not signed and policy requires it.
+    ///
+    /// - Code: `binstall::signature::missing`
+    /// - Exit: 41
+    #[error("Crate {0} does not have signing information")]
+    #[diagnostic(severity(error), code(binstall::signature::missing))]
+    MissingSignature(CompactString),
+
     /// A URL is invalid.
     ///
     /// This may be the result of a template in a Cargo manifest.
@@ -93,19 +199,15 @@ pub enum BinstallError {
         leon::ParseError,
     ),
 
-    /// Failed to render template.
+    /// Failed to fetch pre-built binaries.
     ///
-    /// - Code: `binstall::template`
-    /// - Exit: 69
-    #[error("Failed to render template: {0}")]
-    #[diagnostic(severity(error), code(binstall::template))]
+    /// - Code: `binstall::fetch`
+    /// - Exit: 68
+    #[error(transparent)]
+    #[diagnostic(severity(error), code(binstall::fetch))]
     #[source_code(transparent)]
     #[label(transparent)]
-    TemplateRenderError(
-        #[from]
-        #[diagnostic_source]
-        leon::RenderError,
-    ),
+    FetchError(Box<FetchError>),
 
     /// Failed to download or failed to decode the body.
     ///
@@ -197,18 +299,6 @@ pub enum BinstallError {
     #[diagnostic(severity(error), code(binstall::version::parse))]
     VersionParse(#[from] Box<VersionParseError>),
 
-    /// No available version matches the requirements.
-    ///
-    /// This may be the case when using the `--version` option.
-    ///
-    /// Note that using `--version 1.2.3` is interpreted as the requirement `=1.2.3`.
-    ///
-    /// - Code: `binstall::version::mismatch`
-    /// - Exit: 82
-    #[error("no version matching requirement '{req}'")]
-    #[diagnostic(severity(error), code(binstall::version::mismatch))]
-    VersionMismatch { req: semver::VersionReq },
-
     /// The crate@version syntax was used at the same time as the --version option.
     ///
     /// You can't do that as it's ambiguous which should apply.
@@ -257,13 +347,17 @@ pub enum BinstallError {
     )]
     NoViableTargets,
 
-    /// Bin file is not found.
+    /// Failed to find or install binaries.
     ///
-    /// - Code: `binstall::binfile`
+    /// - Code: `binstall::bins`
     /// - Exit: 88
-    #[error("bin file {0} not found")]
-    #[diagnostic(severity(error), code(binstall::binfile))]
-    BinFileNotFound(PathBuf),
+    #[error("failed to find or install binaries: {0}")]
+    #[diagnostic(
+        severity(error),
+        code(binstall::targets::none_host),
+        help("Try to specify --target")
+    )]
+    BinFile(#[from] bins::Error),
 
     /// `Cargo.toml` of the crate does not have section "Package".
     ///
@@ -280,25 +374,6 @@ pub enum BinstallError {
     #[error("bin-dir configuration provided generates duplicate source path: {path}")]
     #[diagnostic(severity(error), code(binstall::SourceFilePath))]
     DuplicateSourceFilePath { path: PathBuf },
-
-    /// bin-dir configuration provided generates source path outside
-    /// of the temporary dir.
-    ///
-    /// - Code: `binstall::cargo_manifest`
-    /// - Exit: 91
-    #[error(
-        "bin-dir configuration provided generates source path outside of the temporary dir: {path}"
-    )]
-    #[diagnostic(severity(error), code(binstall::SourceFilePath))]
-    InvalidSourceFilePath { path: PathBuf },
-
-    /// bin-dir configuration provided generates empty source path.
-    ///
-    /// - Code: `binstall::cargo_manifest`
-    /// - Exit: 92
-    #[error("bin-dir configuration provided generates empty source path")]
-    #[diagnostic(severity(error), code(binstall::SourceFilePath))]
-    EmptySourceFilePath,
 
     /// Fallback to `cargo-install` is disabled.
     ///
@@ -353,6 +428,11 @@ pub enum BinstallError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     CrateContext(Box<CrateContextError>),
+
+    /// A wrapped error for failures of multiple crates when `--continue-on-failure` is specified.
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Errors(CrateErrors),
 }
 
 impl BinstallError {
@@ -361,9 +441,11 @@ impl BinstallError {
         let code: u8 = match self {
             TaskJoinError(_) => 17,
             UserAbort => 32,
+            InvalidSignature { .. } => 40,
+            MissingSignature(_) => 41,
             UrlParse(_) => 65,
             TemplateParseError(..) => 67,
-            TemplateRenderError(..) => 69,
+            FetchError(..) => 68,
             Download(_) => 68,
             SubProcess { .. } => 70,
             Io(_) => 74,
@@ -373,15 +455,12 @@ impl BinstallError {
             CargoManifest { .. } => 78,
             RegistryParseError(..) => 79,
             VersionParse { .. } => 80,
-            VersionMismatch { .. } => 82,
             SuperfluousVersionOption => 84,
             UnspecifiedBinaries => 86,
             NoViableTargets => 87,
-            BinFileNotFound(_) => 88,
+            BinFile(_) => 88,
             CargoTomlMissingPackage(_) => 89,
             DuplicateSourceFilePath { .. } => 90,
-            InvalidSourceFilePath { .. } => 91,
-            EmptySourceFilePath => 92,
             NoFallbackToCargoInstall => 94,
             InvalidPkgFmt(..) => 95,
             GhApiErr(..) => 96,
@@ -390,6 +469,7 @@ impl BinstallError {
             GitError(_) => 98,
             LoadManifestFromWSError(_) => 99,
             CrateContext(context) => context.err.exit_number(),
+            Errors(errors) => (errors.0)[0].err.exit_number(),
         };
 
         // reserved codes
@@ -411,10 +491,27 @@ impl BinstallError {
 
     /// Add crate context to the error
     pub fn crate_context(self, crate_name: impl Into<CompactString>) -> Self {
-        Self::CrateContext(Box::new(CrateContextError {
-            err: self,
-            crate_name: crate_name.into(),
-        }))
+        self.crate_context_inner(crate_name.into())
+    }
+
+    fn crate_context_inner(self, crate_name: CompactString) -> Self {
+        match self {
+            Self::CrateContext(mut crate_context_error) => {
+                crate_context_error.crate_name = crate_name;
+                Self::CrateContext(crate_context_error)
+            }
+            err => Self::CrateContext(Box::new(CrateContextError { err, crate_name })),
+        }
+    }
+
+    pub fn crate_errors(mut errors: Vec<Box<CrateContextError>>) -> Option<Self> {
+        if errors.is_empty() {
+            None
+        } else if errors.len() == 1 {
+            Some(Self::CrateContext(errors.pop().unwrap()))
+        } else {
+            Some(Self::Errors(CrateErrors(errors.into_boxed_slice())))
+        }
     }
 }
 
@@ -433,20 +530,8 @@ impl Termination for BinstallError {
 
 impl From<io::Error> for BinstallError {
     fn from(err: io::Error) -> Self {
-        if err.get_ref().is_some() {
-            let kind = err.kind();
-
-            let inner = err
-                .into_inner()
-                .expect("err.get_ref() returns Some, so err.into_inner() should also return Some");
-
-            inner
-                .downcast()
-                .map(|b| *b)
-                .unwrap_or_else(|err| BinstallError::Io(io::Error::new(kind, err)))
-        } else {
-            BinstallError::Io(err)
-        }
+        err.downcast::<BinstallError>()
+            .unwrap_or_else(BinstallError::Io)
     }
 }
 
@@ -454,7 +539,7 @@ impl From<BinstallError> for io::Error {
     fn from(e: BinstallError) -> io::Error {
         match e {
             BinstallError::Io(io_error) => io_error,
-            e => io::Error::new(io::ErrorKind::Other, e),
+            e => io::Error::other(e),
         }
     }
 }
@@ -498,5 +583,17 @@ impl From<RegistryError> for BinstallError {
 impl From<InvalidRegistryError> for BinstallError {
     fn from(e: InvalidRegistryError) -> Self {
         BinstallError::RegistryParseError(Box::new(e))
+    }
+}
+
+impl From<LoadManifestFromWSError> for BinstallError {
+    fn from(e: LoadManifestFromWSError) -> Self {
+        BinstallError::LoadManifestFromWSError(Box::new(e))
+    }
+}
+
+impl From<FetchError> for BinstallError {
+    fn from(e: FetchError) -> Self {
+        BinstallError::FetchError(Box::new(e))
     }
 }

@@ -194,9 +194,16 @@ pub fn logging(log_level: LevelFilter, json_output: bool) {
     let log_level = min(log_level, STATIC_MAX_LEVEL);
 
     let allowed_targets = (log_level != LevelFilter::Trace).then_some([
+        "atomic_file_install",
         "binstalk",
+        "binstalk_bins",
         "binstalk_downloader",
+        "binstalk_fetchers",
+        "binstalk_registry",
         "cargo_binstall",
+        "cargo_toml_workspace",
+        "detect_targets",
+        "simple_git",
     ]);
 
     // Forward log to tracing

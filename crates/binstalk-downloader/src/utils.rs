@@ -49,7 +49,7 @@ where
                     // the first scienario occurs.
                     //
                     // Even if the second scienario occurs, it won't affect the
-                    // extraction process anyway, so we can jsut ignore it.
+                    // extraction process anyway, so we can just ignore it.
                     return Ok(());
                 }
             }
@@ -100,10 +100,7 @@ where
     async fn inner<T: Send + 'static>(handle: task::JoinHandle<io::Result<T>>) -> io::Result<T> {
         match handle.await {
             Ok(res) => res,
-            Err(err) => Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("background task failed: {err}"),
-            )),
+            Err(err) => Err(io::Error::other(format!("background task failed: {err}"))),
         }
     }
 

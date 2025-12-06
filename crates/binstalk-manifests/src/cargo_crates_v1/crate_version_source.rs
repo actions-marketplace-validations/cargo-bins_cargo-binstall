@@ -1,6 +1,10 @@
-use std::{borrow::Cow, fmt, str::FromStr};
+use std::{
+    borrow::Cow,
+    fmt::{self, Write as _},
+    str::FromStr,
+};
 
-use binstalk_types::{crate_info::cratesio_url, maybe_owned::MaybeOwned};
+use binstalk_types::maybe_owned::MaybeOwned;
 use compact_str::CompactString;
 use miette::Diagnostic;
 use semver::Version;
@@ -30,6 +34,7 @@ impl From<&CrateInfo> for CrateVersionSource {
                 Git => Source::Git(url),
                 Path => Source::Path(url),
                 Registry => Source::Registry(url),
+                Sparse => Source::Sparse(url),
             },
         }
     }
@@ -40,12 +45,7 @@ pub enum Source<'a> {
     Git(MaybeOwned<'a, Url>),
     Path(MaybeOwned<'a, Url>),
     Registry(MaybeOwned<'a, Url>),
-}
-
-impl Source<'static> {
-    pub fn cratesio_registry() -> Self {
-        Self::Registry(MaybeOwned::Borrowed(cratesio_url()))
-    }
+    Sparse(MaybeOwned<'a, Url>),
 }
 
 impl<'a> From<&'a CrateSource> for Source<'a> {
@@ -58,6 +58,7 @@ impl<'a> From<&'a CrateSource> for Source<'a> {
             Git => Self::Git(url),
             Path => Self::Path(url),
             Registry => Self::Registry(url),
+            Sparse => Self::Sparse(url),
         }
     }
 }
@@ -131,6 +132,15 @@ impl fmt::Display for Source<'_> {
             Source::Git(url) => write!(f, "git+{url}"),
             Source::Path(url) => write!(f, "path+{url}"),
             Source::Registry(url) => write!(f, "registry+{url}"),
+            Source::Sparse(url) => {
+                let url = url.as_str();
+                write!(f, "sparse+{url}")?;
+                if url.ends_with("/") {
+                    Ok(())
+                } else {
+                    f.write_char('/')
+                }
+            }
         }
     }
 }

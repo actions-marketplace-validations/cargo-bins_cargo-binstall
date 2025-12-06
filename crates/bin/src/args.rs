@@ -1,34 +1,42 @@
 use std::{
     env,
     ffi::OsString,
-    fmt,
+    fmt, mem,
     num::{NonZeroU16, NonZeroU64, ParseIntError},
     path::PathBuf,
     str::FromStr,
 };
 
 use binstalk::{
-    drivers::Registry,
     helpers::remote,
     manifests::cargo_toml_binstall::PkgFmt,
     ops::resolve::{CrateName, VersionReqExt},
+    registry::Registry,
 };
-use clap::{error::ErrorKind, CommandFactory, Parser, ValueEnum};
+use binstalk_manifests::cargo_toml_binstall::{PkgOverride, Strategy};
+use clap::{builder::PossibleValue, error::ErrorKind, CommandFactory, Parser, ValueEnum};
 use compact_str::CompactString;
-
 use log::LevelFilter;
 use semver::VersionReq;
+use serde::{Deserialize, Serialize};
 use strum::EnumCount;
-use strum_macros::EnumCount;
+use zeroize::Zeroizing;
 
 #[derive(Debug, Parser)]
 #[clap(
     version,
     about = "Install a Rust binary... from binaries!",
-    after_long_help = "License: GPLv3. Source available at https://github.com/cargo-bins/cargo-binstall",
+    after_long_help =
+        "License: GPLv3. Source available at https://github.com/cargo-bins/cargo-binstall\n\n\
+        Some crate installation strategies may collect anonymized usage statistics by default. \
+        If you prefer not to participate on such data collection, you can opt out by using the \
+        `--disable-telemetry` flag or its associated environment variable. For more details \
+        about this data collection, please refer to the mentioned flag or the project's README \
+        file",
     arg_required_else_help(true),
     // Avoid conflict with version_req
     disable_version_flag(true),
+    styles = clap_cargo::style::CLAP_STYLING,
 )]
 pub struct Args {
     /// Packages to install.
@@ -41,14 +49,14 @@ pub struct Args {
     /// When multiple names are provided, the --version option and override option
     /// `--manifest-path` and `--git` are unavailable due to ambiguity.
     ///
-    /// If duplicate names are provided, the last one (and their version requirement)
+    /// If duplicate names are provided, the last one (and its version requirement)
     /// is kept.
     #[clap(
         help_heading = "Package selection",
         value_name = "crate[@version]",
-        required_unless_present_any = ["version", "help"],
+        required_unless_present_any = ["version", "self_install", "help"],
     )]
-    pub crate_names: Vec<CrateName>,
+    pub(crate) crate_names: Vec<CrateName>,
 
     /// Package version to install.
     ///
@@ -60,9 +68,10 @@ pub struct Args {
     #[clap(
         help_heading = "Package selection",
         long = "version",
-        value_parser(VersionReq::parse_from_cli)
+        value_parser(VersionReq::parse_from_cli),
+        value_name = "VERSION"
     )]
-    pub version_req: Option<VersionReq>,
+    pub(crate) version_req: Option<VersionReq>,
 
     /// Override binary target set.
     ///
@@ -80,9 +89,24 @@ pub struct Args {
         help_heading = "Package selection",
         alias = "target",
         long,
-        value_name = "TRIPLE"
+        value_name = "TRIPLE",
+        env = "CARGO_BUILD_TARGET"
     )]
-    pub targets: Option<Vec<String>>,
+    pub(crate) targets: Option<Vec<String>>,
+
+    /// Install only the specified binaries.
+    ///
+    /// This mirrors the equivalent argument in `cargo install --bin`.
+    ///
+    /// If omitted, all binaries are installed.
+    #[clap(
+        help_heading = "Package selection",
+        long,
+        value_name = "BINARY",
+        num_args = 1..,
+        action = clap::ArgAction::Append
+    )]
+    pub(crate) bin: Option<Vec<CompactString>>,
 
     /// Override Cargo.toml package manifest path.
     ///
@@ -91,24 +115,33 @@ pub struct Args {
     /// containing a Cargo.toml file, or the Cargo.toml file itself.
     ///
     /// This option cannot be used with `--git`.
-    #[clap(help_heading = "Overrides", long)]
-    pub manifest_path: Option<PathBuf>,
+    #[clap(help_heading = "Overrides", long, value_name = "PATH")]
+    pub(crate) manifest_path: Option<PathBuf>,
 
     #[cfg(feature = "git")]
     /// Override how to fetch Cargo.toml package manifest.
     ///
-    /// This skip searching crates.io and instead clone the repository specified and
+    /// This skips searching crates.io and instead clones the repository specified and
     /// runs as if `--manifest-path $cloned_repo` is passed to binstall.
     ///
     /// This option cannot be used with `--manifest-path`.
-    #[clap(help_heading = "Overrides", long, conflicts_with("manifest_path"))]
-    pub git: Option<binstalk::drivers::GitUrl>,
+    #[clap(
+        help_heading = "Overrides",
+        long,
+        conflicts_with("manifest_path"),
+        value_name = "URL"
+    )]
+    pub(crate) git: Option<binstalk::registry::GitUrl>,
 
-    /// Override Cargo.toml package manifest bin-dir.
+    /// Path template for binary files in packages
+    ///
+    /// Overrides the Cargo.toml package manifest bin-dir.
     #[clap(help_heading = "Overrides", long)]
-    pub bin_dir: Option<String>,
+    pub(crate) bin_dir: Option<String>,
 
-    /// Override Cargo.toml package manifest pkg-fmt.
+    /// Format for package downloads
+    ///
+    /// Overrides the Cargo.toml package manifest pkg-fmt.
     ///
     /// The available package formats are:
     ///
@@ -126,11 +159,13 @@ pub struct Args {
     ///
     /// - bin: Download format is raw / binary
     #[clap(help_heading = "Overrides", long, value_name = "PKG_FMT")]
-    pub pkg_fmt: Option<PkgFmt>,
+    pub(crate) pkg_fmt: Option<PkgFmt>,
 
-    /// Override Cargo.toml package manifest pkg-url.
-    #[clap(help_heading = "Overrides", long)]
-    pub pkg_url: Option<String>,
+    /// URL template for package downloads
+    ///
+    /// Overrides the Cargo.toml package manifest pkg-url.
+    #[clap(help_heading = "Overrides", long, value_name = "TEMPLATE")]
+    pub(crate) pkg_url: Option<String>,
 
     /// Override the rate limit duration.
     ///
@@ -144,47 +179,95 @@ pub struct Args {
     ///    allows 2 requests per 6ms.
     ///
     /// Both duration and request count must not be 0.
-    #[clap(help_heading = "Overrides", long, default_value_t = RateLimit::default(), env = "BINSTALL_RATE_LIMIT")]
-    pub rate_limit: RateLimit,
+    #[clap(
+        help_heading = "Overrides",
+        long,
+        default_value_t = RateLimit::default(),
+        env = "BINSTALL_RATE_LIMIT",
+        value_name = "LIMIT",
+    )]
+    pub(crate) rate_limit: RateLimit,
 
     /// Specify the strategies to be used,
     /// binstall will run the strategies specified in order.
     ///
+    /// If this option is specified, then cargo-binstall will ignore
+    /// `disabled-strategies` in `package.metadata` in the cargo manifest
+    /// of the installed packages.
+    ///
     /// Default value is "crate-meta-data,quick-install,compile".
-    #[clap(help_heading = "Overrides", long, value_delimiter(','))]
-    pub strategies: Vec<Strategy>,
+    #[clap(
+        help_heading = "Overrides",
+        long,
+        value_delimiter(','),
+        env = "BINSTALL_STRATEGIES"
+    )]
+    pub(crate) strategies: Vec<StrategyWrapped>,
 
     /// Disable the strategies specified.
     /// If a strategy is specified in `--strategies` and `--disable-strategies`,
     /// then it will be removed.
-    #[clap(help_heading = "Overrides", long, value_delimiter(','))]
-    pub disable_strategies: Vec<Strategy>,
+    ///
+    /// If `--strategies` is not specified, then the strategies specified in this
+    /// option will be merged with the  disabled-strategies` in `package.metadata`
+    /// in the cargo manifest of the installed packages.
+    #[clap(
+        help_heading = "Overrides",
+        long,
+        value_delimiter(','),
+        env = "BINSTALL_DISABLE_STRATEGIES",
+        value_name = "STRATEGIES"
+    )]
+    pub(crate) disable_strategies: Vec<StrategyWrapped>,
 
     /// If `--github-token` or environment variable `GITHUB_TOKEN`/`GH_TOKEN`
     /// is not specified, then cargo-binstall will try to extract github token from
     /// `$HOME/.git-credentials` or `$HOME/.config/gh/hosts.yml` by default.
     ///
     /// This option can be used to disable that behavior.
-    #[clap(help_heading = "Overrides", long)]
-    pub no_discover_github_token: bool,
+    #[clap(
+        help_heading = "Overrides",
+        long,
+        env = "BINSTALL_NO_DISCOVER_GITHUB_TOKEN"
+    )]
+    pub(crate) no_discover_github_token: bool,
+
+    /// Maximum time each resolution (one for each possible target and each strategy), in seconds.
+    #[clap(
+        help_heading = "Overrides",
+        long,
+        env = "BINSTALL_MAXIMUM_RESOLUTION_TIMEOUT",
+        default_value_t = NonZeroU16::new(15).unwrap(),
+        value_name = "TIMEOUT"
+    )]
+    pub(crate) maximum_resolution_timeout: NonZeroU16,
 
     /// This flag is now enabled by default thus a no-op.
     ///
     /// By default, Binstall will install a binary as-is in the install path.
     #[clap(help_heading = "Options", long, default_value_t = true)]
-    pub no_symlinks: bool,
+    pub(crate) no_symlinks: bool,
 
     /// Dry run, fetch and show changes without installing binaries.
     #[clap(help_heading = "Options", long)]
-    pub dry_run: bool,
+    pub(crate) dry_run: bool,
 
     /// Disable interactive mode / confirmation prompts.
-    #[clap(help_heading = "Options", short = 'y', long)]
-    pub no_confirm: bool,
+    #[clap(
+        help_heading = "Options",
+        short = 'y',
+        long,
+        env = "BINSTALL_NO_CONFIRM"
+    )]
+    pub(crate) no_confirm: bool,
 
     /// Do not cleanup temporary files.
     #[clap(help_heading = "Options", long)]
-    pub no_cleanup: bool,
+    pub(crate) no_cleanup: bool,
+
+    /// Continue installing other crates even if one of the crate failed to install.
+    #[clap(help_heading = "Options", long)]
+    pub(crate) continue_on_failure: bool,
 
     /// By default, binstall keeps track of the installed packages with metadata files
     /// stored in the installation root directory.
@@ -199,16 +282,27 @@ pub struct Args {
     ///
     /// This flag will also be passed to `cargo-install` if it is invoked.
     #[clap(help_heading = "Options", long)]
-    pub no_track: bool,
+    pub(crate) no_track: bool,
 
-    /// Install binaries in a custom location.
+    /// Disable statistics collection on popular crates.
+    ///
+    /// Strategy quick-install (can be disabled via --disable-strategies) collects
+    /// statistics of popular crates by default, by sending the crate, version, target
+    /// and status to https://cargo-quickinstall-stats-server.fly.dev/record-install
+    #[clap(help_heading = "Options", long, env = "BINSTALL_DISABLE_TELEMETRY")]
+    pub(crate) disable_telemetry: bool,
+
+    /// Install prebuilt binaries in a custom location.
     ///
     /// By default, binaries are installed to the global location `$CARGO_HOME/bin`, and global
     /// metadata files are updated with the package information. Specifying another path here
     /// switches over to a "local" install, where binaries are installed at the path given, and the
     /// global metadata files are not updated.
-    #[clap(help_heading = "Options", long)]
-    pub install_path: Option<PathBuf>,
+    ///
+    /// This option has no effect if the package is installed from source. To install a package
+    /// from source to a specific path, without Cargo metadata use `--root <PATH> --no-track`.
+    #[clap(help_heading = "Options", long, value_name = "PATH")]
+    pub(crate) install_path: Option<PathBuf>,
 
     /// Install binaries with a custom cargo root.
     ///
@@ -221,60 +315,64 @@ pub struct Args {
     ///
     /// NOTE that `--install-path` takes precedence over this option.
     #[clap(help_heading = "Options", long, alias = "roots")]
-    pub root: Option<PathBuf>,
+    pub(crate) root: Option<PathBuf>,
 
     /// The URL of the registry index to use.
     ///
     /// Cannot be used with `--registry`.
     #[clap(help_heading = "Options", long)]
-    pub index: Option<Registry>,
+    pub(crate) index: Option<Registry>,
 
-    /// Name of the registry to use. Registry names are defined in Cargo config
-    /// files <https://doc.rust-lang.org/cargo/reference/config.html>.
+    /// Name of the registry to use. Registry names are defined in Cargo
+    /// configuration files <https://doc.rust-lang.org/cargo/reference/config.html>.
     ///
-    /// If not specified in cmdline or via environment variable, the default
-    /// registry is used, which is defined by the
-    /// `registry.default` config key in `.cargo/config.toml` which defaults
-    /// to crates-io.
+    /// If not specified on the command line or via an environment variable, the
+    /// default registry is used. This is controlled by the `registry.default` key
+    /// in `.cargo/config.toml`. If that key is not set, the default is `crates.io`.
     ///
-    /// If it is set, then it will try to read environment variable
-    /// `CARGO_REGISTRIES_{registry_name}_INDEX` for index url and fallback to
-    /// reading from `registries.<name>.index`.
+    /// If a registry name is provided, Cargo first checks the environment variable
+    /// `CARGO_REGISTRIES_{registry_name}_INDEX` for the index URL. If that is not
+    /// set, it falls back to the `registries.<name>.index` key in `.cargo/config.toml`.
     ///
-    /// Cannot be used with `--index`.
+    /// Cannot be combined with `--index`.
     #[clap(
         help_heading = "Options",
         long,
         env = "CARGO_REGISTRY_DEFAULT",
         conflicts_with("index")
     )]
-    pub registry: Option<CompactString>,
+    pub(crate) registry: Option<CompactString>,
 
     /// This option will be passed through to all `cargo-install` invocations.
     ///
     /// It will require `Cargo.lock` to be up to date.
     #[clap(help_heading = "Options", long)]
-    pub locked: bool,
+    pub(crate) locked: bool,
 
     /// Deprecated, here for back-compat only. Secure is now on by default.
     #[clap(hide(true), long)]
-    pub secure: bool,
+    pub(crate) secure: bool,
 
     /// Force a crate to be installed even if it is already installed.
     #[clap(help_heading = "Options", long)]
-    pub force: bool,
+    pub(crate) force: bool,
 
     /// Require a minimum TLS version from remote endpoints.
     ///
     /// The default is not to require any minimum TLS version, and use the negotiated highest
     /// version available to both this client and the remote server.
     #[clap(help_heading = "Options", long, value_enum, value_name = "VERSION")]
-    pub min_tls_version: Option<TLSVersion>,
+    pub(crate) min_tls_version: Option<TLSVersion>,
 
-    /// Specify the root certificates to use for https connnections,
+    /// Specify the root certificates to use for https connections,
     /// in addition to default system-wide ones.
-    #[clap(help_heading = "Options", long, env = "BINSTALL_HTTPS_ROOT_CERTS")]
-    pub root_certificates: Vec<PathBuf>,
+    #[clap(
+        help_heading = "Options",
+        long,
+        env = "BINSTALL_HTTPS_ROOT_CERTS",
+        value_name = "PATH"
+    )]
+    pub(crate) root_certificates: Vec<PathBuf>,
 
     /// Print logs in json format to be parsable.
     #[clap(help_heading = "Options", long)]
@@ -286,11 +384,41 @@ pub struct Args {
     /// specified (which is also shown by clap's auto generated doc below), or
     /// try environment variable `GH_TOKEN`, which is also used by `gh` cli.
     ///
-    /// If none of them is present, then binstal will try to extract github
+    /// If none of them is present, then binstall will try to extract github
     /// token from `$HOME/.git-credentials` or `$HOME/.config/gh/hosts.yml`
     /// unless `--no-discover-github-token` is specified.
-    #[clap(help_heading = "Options", long, env = "GITHUB_TOKEN")]
-    pub github_token: Option<CompactString>,
+    #[clap(
+        help_heading = "Options",
+        long,
+        env = "GITHUB_TOKEN",
+        value_name = "TOKEN"
+    )]
+    pub(crate) github_token: Option<GithubToken>,
+
+    /// Only install packages that are signed
+    ///
+    /// The default is to verify signatures if they are available, but to allow
+    /// unsigned packages as well.
+    #[clap(help_heading = "Options", long)]
+    pub(crate) only_signed: bool,
+
+    /// Don't check any signatures
+    ///
+    /// The default is to verify signatures if they are available. This option
+    /// disables that behaviour entirely, which will also stop downloading
+    /// signature files in the first place.
+    ///
+    /// Note that this is insecure and not recommended outside of testing.
+    #[clap(help_heading = "Options", long, conflicts_with = "only_signed")]
+    pub(crate) skip_signatures: bool,
+
+    /// Custom settings file
+    ///
+    /// The default is to read a binstall.toml file from CARGO_HOME or the cargo root directory.
+    ///
+    /// If a file is not found at the path provided, one will be created with the defaults.
+    #[clap(help_heading = "Options", long)]
+    pub(crate) settings: Option<PathBuf>,
 
     /// Print version information
     #[clap(help_heading = "Meta", short = 'V')]
@@ -318,19 +446,36 @@ pub struct Args {
     #[clap(help_heading = "Meta", long, value_name = "LEVEL")]
     pub log_level: Option<LevelFilter>,
 
-    /// Used with `--version` to print out verbose information.
-    #[clap(help_heading = "Meta", short, long, default_value_t = false)]
+    /// Implies `--log-level debug` and it can also be used with `--version`
+    /// to print out verbose information,
+    #[clap(help_heading = "Meta", short, long)]
     pub verbose: bool,
 
     /// Equivalent to setting `log_level` to `off`.
     ///
     /// This would override the `log_level`.
-    #[clap(help_heading = "Meta", short, long)]
-    pub quiet: bool,
+    #[clap(help_heading = "Meta", short, long, conflicts_with("verbose"))]
+    pub(crate) quiet: bool,
+
+    #[clap(long, hide(true))]
+    pub(crate) self_install: bool,
+
+    #[cfg(feature = "clap-markdown")]
+    #[clap(long, hide = true)]
+    pub(crate) markdown_help: bool,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct GithubToken(pub(crate) Zeroizing<Box<str>>);
+
+impl From<&str> for GithubToken {
+    fn from(s: &str) -> Self {
+        Self(Zeroizing::new(s.into()))
+    }
 }
 
 #[derive(Debug, Copy, Clone, ValueEnum)]
-pub enum TLSVersion {
+pub(crate) enum TLSVersion {
     #[clap(name = "1.2")]
     Tls1_2,
     #[clap(name = "1.3")]
@@ -347,9 +492,9 @@ impl From<TLSVersion> for remote::TLSVersion {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct RateLimit {
-    pub duration: NonZeroU16,
-    pub request_count: NonZeroU64,
+pub(crate) struct RateLimit {
+    pub(crate) duration: NonZeroU16,
+    pub(crate) request_count: NonZeroU64,
 }
 
 impl fmt::Display for RateLimit {
@@ -386,19 +531,28 @@ impl Default for RateLimit {
 }
 
 /// Strategy for installing the package
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, ValueEnum, EnumCount)]
-#[repr(u8)]
-pub enum Strategy {
-    /// Attempt to download official pre-built artifacts using
-    /// information provided in `Cargo.toml`.
-    CrateMetaData,
-    /// Query third-party QuickInstall for the crates.
-    QuickInstall,
-    /// Build the crates from source using `cargo-build`.
-    Compile,
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(transparent)]
+pub(crate) struct StrategyWrapped(pub(crate) Strategy);
+
+impl StrategyWrapped {
+    const VARIANTS: &'static [Self; 3] = &[
+        Self(Strategy::CrateMetaData),
+        Self(Strategy::QuickInstall),
+        Self(Strategy::Compile),
+    ];
 }
 
-pub fn parse() -> Args {
+impl ValueEnum for StrategyWrapped {
+    fn value_variants<'a>() -> &'a [Self] {
+        Self::VARIANTS
+    }
+    fn to_possible_value(&self) -> Option<PossibleValue> {
+        Some(PossibleValue::new(self.0.to_str()))
+    }
+}
+
+pub fn parse() -> (Args, PkgOverride) {
     // Filter extraneous arg when invoked by cargo
     // `cargo run -- --help` gives ["target/debug/cargo-binstall", "--help"]
     // `cargo binstall --help` gives ["/home/ryan/.cargo/bin/cargo-binstall", "binstall", "--help"]
@@ -421,15 +575,27 @@ pub fn parse() -> Args {
     // Load options
     let mut opts = Args::parse_from(args);
 
-    if let (true, Some(log)) = (
-        opts.log_level.is_none(),
-        env::var("BINSTALL_LOG_LEVEL")
+    #[cfg(feature = "clap-markdown")]
+    if opts.markdown_help {
+        clap_markdown::print_help_markdown::<Args>();
+        std::process::exit(0);
+    }
+
+    if opts.self_install {
+        return (opts, Default::default());
+    }
+
+    if opts.log_level.is_none() {
+        if let Some(log) = env::var("BINSTALL_LOG_LEVEL")
             .ok()
-            .and_then(|s| s.parse().ok()),
-    ) {
-        opts.log_level = Some(log);
-    } else if opts.quiet {
-        opts.log_level = Some(LevelFilter::Off);
+            .and_then(|s| s.parse().ok())
+        {
+            opts.log_level = Some(log);
+        } else if opts.quiet {
+            opts.log_level = Some(LevelFilter::Off);
+        } else if opts.verbose {
+            opts.log_level = Some(LevelFilter::Debug);
+        }
     }
 
     // Ensure no conflict
@@ -485,7 +651,7 @@ You cannot use --{option} and specify multiple packages at the same time. Do one
     let mut is_variant_present = [false; Strategy::COUNT];
 
     for strategy in &opts.strategies {
-        let index = *strategy as u8 as usize;
+        let index = strategy.0 as u8 as usize;
         if is_variant_present[index] {
             new_dup_strategy_err().exit()
         } else {
@@ -493,12 +659,14 @@ You cannot use --{option} and specify multiple packages at the same time. Do one
         }
     }
 
+    let ignore_disabled_strategies = !opts.strategies.is_empty();
+
     // Default strategies if empty
     if opts.strategies.is_empty() {
         opts.strategies = vec![
-            Strategy::CrateMetaData,
-            Strategy::QuickInstall,
-            Strategy::Compile,
+            StrategyWrapped(Strategy::CrateMetaData),
+            StrategyWrapped(Strategy::QuickInstall),
+            StrategyWrapped(Strategy::Compile),
         ];
     }
 
@@ -520,13 +688,11 @@ You cannot use --{option} and specify multiple packages at the same time. Do one
                 .error(ErrorKind::TooFewValues, "You have disabled all strategies")
                 .exit()
         }
-
-        // Free disable_strategies as it will not be used again.
-        opts.disable_strategies = Vec::new();
     }
 
     // Ensure that Strategy::Compile is specified as the last strategy
-    if opts.strategies[..(opts.strategies.len() - 1)].contains(&Strategy::Compile) {
+    if opts.strategies[..(opts.strategies.len() - 1)].contains(&StrategyWrapped(Strategy::Compile))
+    {
         command
             .error(
                 ErrorKind::InvalidValue,
@@ -537,25 +703,58 @@ You cannot use --{option} and specify multiple packages at the same time. Do one
 
     if opts.github_token.is_none() {
         if let Ok(github_token) = env::var("GH_TOKEN") {
-            opts.github_token = Some(github_token.into());
-        } else if !opts.no_discover_github_token {
-            if let Some(github_token) = crate::git_credentials::try_from_home() {
-                opts.github_token = Some(github_token);
-            } else if let Ok(github_token) = gh_token::get() {
-                opts.github_token = Some(github_token.into());
-            }
+            opts.github_token = Some(GithubToken(Zeroizing::new(github_token.into())));
         }
     }
+    match opts.github_token.as_ref() {
+        Some(token) if token.0.len() < 10 => opts.github_token = None,
+        _ => (),
+    }
 
-    opts
+    let cli_overrides = PkgOverride {
+        pkg_url: opts.pkg_url.take(),
+        pkg_fmt: opts.pkg_fmt.take(),
+        bin_dir: opts.bin_dir.take(),
+        disabled_strategies: Some(
+            mem::take(&mut opts.disable_strategies)
+                .into_iter()
+                .map(|strategy| strategy.0)
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+        ),
+        ignore_disabled_strategies,
+        signing: None,
+    };
+
+    (opts, cli_overrides)
 }
 
 #[cfg(test)]
 mod test {
+    use strum::VariantArray;
+
     use super::*;
 
     #[test]
     fn verify_cli() {
         Args::command().debug_assert()
     }
+
+    #[test]
+    fn quickinstall_url_matches() {
+        let long_help = Args::command()
+            .get_opts()
+            .find(|opt| opt.get_long() == Some("disable-telemetry"))
+            .unwrap()
+            .get_long_help()
+            .unwrap()
+            .to_string();
+        assert!(
+            long_help.ends_with(binstalk::QUICKINSTALL_STATS_URL),
+            "{}",
+            long_help
+        );
+    }
+
+    const _: () = assert!(Strategy::VARIANTS.len() == StrategyWrapped::VARIANTS.len());
 }

@@ -34,10 +34,10 @@ use crate_version_source::*;
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct CratesToml<'a> {
     #[serde(with = "tuple_vec_map")]
-    v1: Vec<(String, Cow<'a, [CompactString]>)>,
+    v1: Vec<(Box<str>, Cow<'a, [CompactString]>)>,
 }
 
-impl CratesToml<'_> {
+impl<'v1> CratesToml<'v1> {
     pub fn default_path() -> Result<PathBuf, CratesTomlParseError> {
         Ok(cargo_home()?.join(".crates.toml"))
     }
@@ -62,20 +62,20 @@ impl CratesToml<'_> {
     }
 
     pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, CratesTomlParseError> {
-        let file = FileLock::new_shared(File::open(path)?)?;
+        let path = path.as_ref();
+        let file = FileLock::new_shared(File::open(path)?)?.set_file_path(path);
         Self::load_from_reader(file)
     }
 
-    /// Only use it when you know that the crate is not in the manifest.
-    /// Otherwise, you need to call [`CratesToml::remove`] first.
-    pub fn insert(&mut self, cvs: &CrateVersionSource, bins: Vec<CompactString>) {
-        self.v1.push((cvs.to_string(), Cow::owned(bins)));
+    pub fn remove(&mut self, name: &str) {
+        self.remove_all(&[name]);
     }
 
-    pub fn remove(&mut self, name: &str) {
+    /// * `sorted_names` - must be sorted
+    pub fn remove_all(&mut self, sorted_names: &[&str]) {
         self.v1.retain(|(s, _bin)| {
             s.split_once(' ')
-                .map(|(crate_name, _rest)| crate_name != name)
+                .map(|(crate_name, _rest)| sorted_names.binary_search(&crate_name).is_err())
                 .unwrap_or_default()
         });
     }
@@ -106,57 +106,59 @@ impl CratesToml<'_> {
     }
 
     pub fn write_to_path(&self, path: impl AsRef<Path>) -> Result<(), CratesTomlParseError> {
-        let mut file = FileLock::new_exclusive(File::create(path)?)?;
+        let path = path.as_ref();
+        let mut file = FileLock::new_exclusive(File::create(path)?)?.set_file_path(path);
         self.write_to_file(&mut file)
     }
 
-    pub fn append_to_file<'a, Iter>(file: &mut File, iter: Iter) -> Result<(), CratesTomlParseError>
-    where
-        Iter: IntoIterator<Item = &'a CrateInfo>,
-    {
-        fn inner(
-            file: &mut File,
-            iter: &mut dyn Iterator<Item = &CrateInfo>,
-        ) -> Result<(), CratesTomlParseError> {
-            let mut c1 = CratesToml::load_from_reader(&mut *file)?;
+    pub fn add_crate(&mut self, metadata: &'v1 CrateInfo) {
+        let name = &metadata.name;
+        let version = &metadata.current_version;
+        let source = Source::from(&metadata.source);
 
-            for metadata in iter {
-                let name = &metadata.name;
-                let version = &metadata.current_version;
-                let source = Source::from(&metadata.source);
+        self.v1.push((
+            format!("{name} {version} ({source})").into(),
+            Cow::borrowed(&metadata.bins),
+        ));
+    }
 
-                c1.remove(name);
-                c1.v1.push((
-                    format!("{name} {version} ({source})"),
-                    Cow::borrowed(&metadata.bins),
-                ));
-            }
+    pub fn append_to_file(
+        file: &mut File,
+        crates: &[CrateInfo],
+    ) -> Result<(), CratesTomlParseError> {
+        let mut c1 = CratesToml::load_from_reader(&mut *file)?;
 
-            file.rewind()?;
-            c1.write_to_file(file)?;
+        c1.remove_all(&{
+            let mut crate_names: Vec<_> = crates
+                .iter()
+                .map(|metadata| metadata.name.as_str())
+                .collect();
+            crate_names.sort_unstable();
+            crate_names
+        });
 
-            Ok(())
+        c1.v1.reserve_exact(crates.len());
+
+        for metadata in crates {
+            c1.add_crate(metadata);
         }
 
-        inner(file, &mut iter.into_iter())
+        file.rewind()?;
+        c1.write_to_file(file)?;
+
+        Ok(())
     }
 
-    pub fn append_to_path<'a, Iter>(
+    pub fn append_to_path(
         path: impl AsRef<Path>,
-        iter: Iter,
-    ) -> Result<(), CratesTomlParseError>
-    where
-        Iter: IntoIterator<Item = &'a CrateInfo>,
-    {
-        let mut file = FileLock::new_exclusive(create_if_not_exist(path.as_ref())?)?;
-        Self::append_to_file(&mut file, iter)
+        crates: &[CrateInfo],
+    ) -> Result<(), CratesTomlParseError> {
+        let mut file = create_if_not_exist(path.as_ref())?;
+        Self::append_to_file(&mut file, crates)
     }
 
-    pub fn append<'a, Iter>(iter: Iter) -> Result<(), CratesTomlParseError>
-    where
-        Iter: IntoIterator<Item = &'a CrateInfo>,
-    {
-        Self::append_to_path(Self::default_path()?, iter)
+    pub fn append(crates: &[CrateInfo]) -> Result<(), CratesTomlParseError> {
+        Self::append_to_path(Self::default_path()?, crates)
     }
 
     /// Return BTreeMap with crate name as key and its corresponding version

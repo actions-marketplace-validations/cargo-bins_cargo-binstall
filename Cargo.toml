@@ -1,16 +1,21 @@
 [workspace]
+resolver = "2"
 members = [
+    "crates/atomic-file-install",
     "crates/bin",
     "crates/binstalk",
+    "crates/binstalk-bins",
+    "crates/binstalk-fetchers",
+    "crates/binstalk-registry",
     "crates/binstalk-manifests",
     "crates/binstalk-types",
     "crates/binstalk-downloader",
+    "crates/cargo-toml-workspace",
     "crates/detect-wasi",
     "crates/fs-lock",
     "crates/normalize-path",
     "crates/detect-targets",
-    "crates/leon",
-    "crates/leon-macros",
+    "crates/binstalk-git-repo-api",
 ]
 
 [profile.release]
@@ -23,7 +28,7 @@ strip = "symbols"
 [profile.release.build-override]
 inherits = "dev.build-override"
 
-[profile.release.package."tokio-tar"]
+[profile.release.package."astral-tokio-tar"]
 opt-level = "z"
 
 [profile.release.package."binstall-tar"]
@@ -31,7 +36,7 @@ opt-level = "z"
 
 [profile.dev]
 opt-level = 0
-debug = true
+debug = "line-tables-only"
 lto = false
 debug-assertions = true
 overflow-checks = true
@@ -41,7 +46,7 @@ codegen-units = 32
 [profile.dev.package."*"]
 opt-level = 3
 
-[profile.dev.package."tokio-tar"]
+[profile.dev.package."astral-tokio-tar"]
 opt-level = "z"
 
 [profile.dev.package."binstall-tar"]
@@ -66,3 +71,8 @@ inherits = "check-only"
 
 [profile.check-only.package."*"]
 inherits = "check-only"
+# https://github.com/crate-ci/typos/blob/master/docs/reference.md
+[workspace.metadata.typos.default]
+extend-ignore-words-re = [
+    '^[a-zA-Z]{1,2}$' # ignore words up to length 2
+]

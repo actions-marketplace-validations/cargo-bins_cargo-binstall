@@ -8,7 +8,9 @@ unset CARGO_INSTALL_ROOT
 #    to find versions matching <= 1.3.3
 #  - `cargo-quickinstall` would test `fetch_crate_cratesio_version_matched` ability
 #    to find latest stable version.
-crates="b3sum@<=1.3.3 cargo-release@0.24.9 cargo-binstall@0.20.1 cargo-watch@8.4.0 miniserve@0.23.0 sccache@0.3.3 cargo-quickinstall"
+#  - `git-mob-tool tests the using of using a binary name (`git-mob`) different
+#    from the package name.
+crates="b3sum@<=1.3.3 cargo-release@0.24.9 cargo-binstall@0.20.1 cargo-watch@8.4.0 sccache@0.3.3 cargo-quickinstall jj-cli@0.18.0 git-mob-tool@1.6.1"
 
 CARGO_HOME=$(mktemp -d 2>/dev/null || mktemp -d -t 'cargo-home')
 export CARGO_HOME
@@ -36,7 +38,6 @@ echo "$cargo_release_version"
 
 [ "$cargo_release_version" = "cargo-release 0.24.9" ]
 
-cargo-binstall --help >/dev/null
 cargo binstall --help >/dev/null
 
 cargo_binstall_version="$(cargo-binstall -V)"
@@ -49,9 +50,19 @@ echo "$cargo_watch_version"
 
 [ "$cargo_watch_version" = "cargo-watch 8.4.0" ]
 
-miniserve_version="$(miniserve -V)"
-echo "$miniserve_version"
-
-[ "$miniserve_version" = "miniserve 0.23.0" ]
-
 cargo-quickinstall -V
+
+jj_version="$(jj --version)"
+echo "$jj_version"
+
+[ "$jj_version" = "jj 0.18.0-9fb5307b7886e390c02817af7c31b403f0279144" ]
+
+git_mob_version="$(git-mob --version)"
+echo "$git_mob_version"
+
+[ "$git_mob_version" = "git-mob-tool 1.6.1" ]
+
+cargo uninstall b3sum cargo-binstall
+
+"./$1" binstall -y cargo-binstall@0.20.1
+jq <"$CARGO_HOME/binstall/crates-v1.json" | grep -v b3sum

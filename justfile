@@ -12,6 +12,7 @@ use-auditable := env_var_or_default("JUST_USE_AUDITABLE", "")
 timings := env_var_or_default("JUST_TIMINGS", "")
 build-std := env_var_or_default("JUST_BUILD_STD", "")
 enable-h3 := env_var_or_default("JUST_ENABLE_H3", "")
+cargo-nextest-additional-args := env_var_or_default("CARGO_NEXTEST_ADDITIONAL_ARGS", "")
 
 export BINSTALL_LOG_LEVEL := if env_var_or_default("RUNNER_DEBUG", "0") == "1" { "debug" } else { "info" }
 export BINSTALL_RATE_LIMIT := "30/1"
@@ -78,30 +79,10 @@ support-pkg-config := if target == target-host {
     if target-os == "linux" { "true" } else { "" }
 } else { "" }
 
-#} else if target == "x86_64-unknown-linux-gnu" {
-#    ",zlib-ng"
-#} else if target == "x86_64-unknown-linux-musl" {
-#    ",zlib-ng"
-git-max-perf-feature := if target == "x86_64-apple-darwin" {
-    ",zlib-ng"
-} else if target == "x86_64h-apple-darwin" {
-    ",zlib-ng"
-} else if target == "aarch64-apple-darwin" {
-    ",zlib-ng"
-} else if target-os == "windows" {
-    ",zlib-ng"
-} else if target == "aarch64-unknown-linux-gnu" {
-    ",zlib-ng"
-} else if target == "aarch64-unknown-linux-musl" {
-    ",zlib-ng"
-} else {
-    ""
-}
-
 h3-features := if enable-h3 != "" { ",http3" } else { "" }
 cargo-features := trim_end_match(if override-features != "" { override-features + h3-features
-    } else if (cargo-profile / ci-or-no) == "dev/ci" { "git,rustls,fancy-with-backtrace,zstd-thin,log_max_level_debug" + git-max-perf-feature + (if support-pkg-config != "" { ",pkg-config" } else { "" }) + h3-features + extra-features
-    } else if (cargo-profile / ci-or-no) == "release/ci" { "git,static,rustls,trust-dns,fancy-no-backtrace,zstd-thin,log_release_max_level_debug,cross-lang-fat-lto"  + git-max-perf-feature + h3-features + extra-features
+    } else if (cargo-profile / ci-or-no) == "dev/ci" { "git,rustls,fancy-with-backtrace,zstd-thin,log_max_level_debug,zlib-rs" + (if support-pkg-config != "" { ",pkg-config" } else { "" }) + h3-features + extra-features
+    } else if (cargo-profile / ci-or-no) == "release/ci" { "git,static,rustls,trust-dns,fancy-no-backtrace,zstd-thin,log_release_max_level_debug,cross-lang-fat-lto,zlib-rs" + h3-features + extra-features
     } else if extra-features != "" { extra-features + h3-features
     } else if enable-h3 != "" { "http3"
     } else { ""
@@ -110,10 +91,6 @@ cargo-features := trim_end_match(if override-features != "" { override-features 
 # it seems we can't split debuginfo for non-buildstd builds
 # errors with: "Found a record with an unknown abbreviation code"
 cargo-split-debuginfo := if cargo-buildstd != "" { " --config='profile.release.split-debuginfo=\"packed\"' --config=profile.release.debug=2" } else { "" }
-
-# for ARM64 Windows, use a patched version of ring
-# this should be unnecessary once ring 0.17 is released
-win-arm64-ring16 := if target == "aarch64-pc-windows-msvc" { " --config='patch.crates-io.ring.git=\"https://github.com/awakecoding/ring\"' --config='patch.crates-io.ring.branch=\"0.16.20_alpha\"'" } else { "" }
 
 # MIR optimisation level (defaults to 2, bring it up to 4 for release builds)
 # **DISABLED because it's buggy**
@@ -132,21 +109,18 @@ rustc-miropt := "" # if for-release != "" { " -Z mir-opt-level=4" } else { "" }
 # This option is disabled on windows since it not supported.
 rust-lld := "" #if use-cargo-zigbuild != "" {
 #""
-#} else if target-os != "windows" {
-#" -Z gcc-ld=lld"
 #} else {
-#""
+#" -C link-arg=-fuse-ld=lld"
 #}
 
 # ICF: link-time identical code folding
 #
-# On windows it works out of the box and on linux it uses
-# rust-lld.
+# On windows it works out of the box.
 rustc-icf := if for-release != "" {
     if target-os == "windows" {
         " -C link-arg=-Wl,--icf=safe"
      } else if target-os == "linux" {
-        " -C link-arg=-Wl,--icf=safe"
+        ""
      } else {
         ""
     }
@@ -176,8 +150,15 @@ target-glibc-ver-postfix := if glibc-version != "" {
     ""
 }
 
-cargo-check-args := (" --target ") + (target) + (target-glibc-ver-postfix) + (cargo-buildstd) + (if extra-build-args != "" { " " + extra-build-args } else { "" }) + (cargo-split-debuginfo) + (win-arm64-ring16)
-cargo-build-args := (if for-release != "" { " --release" } else { "" }) + (cargo-check-args) + (cargo-no-default-features) + (if cargo-features != "" { " --features " + cargo-features } else { "" }) + (if timings != "" { " --timings" } else { "" })
+toolchain-name := if cargo-buildstd != "" { "nightly" } else { "stable" }
+cargo-nightly-args := if toolchain-name == "nightly" {
+    " -Zprofile-hint-mostly-unused"
+} else {
+    ""
+}
+
+cargo-check-args := (" --target ") + (target) + (target-glibc-ver-postfix) + (cargo-buildstd) + (if extra-build-args != "" { " " + extra-build-args } else { "" }) + (cargo-split-debuginfo)
+cargo-build-args := (if for-release != "" { " --release" } else { "" }) + cargo-nightly-args + (cargo-check-args) + (cargo-no-default-features) + (if cargo-features != "" { " --features " + cargo-features } else { "" }) + (if timings != "" { " --timings" } else { "" })
 export RUSTFLAGS := (linker-plugin-lto) + (rustc-gcclibs) + (rustc-miropt) + (rust-lld) + (rustc-icf) + (if enable-h3 != "" { " --cfg reqwest_unstable" } else { "" })
 
 
@@ -194,7 +175,6 @@ ci-install-deps:
 [windows]
 ci-install-deps:
 
-toolchain-name := if cargo-buildstd != "" { "nightly" } else { "stable" }
 # x86_64h-apple-darwin does not contain pre-built libstd, instead we will
 # install rust-src and use build-std to build it.
 target-name := if target == "x86_64h-apple-darwin" { "" } else { target }
@@ -215,12 +195,11 @@ build: print-env
 
 check: print-env
     {{cargo-bin}} check {{cargo-build-args}} --profile check-only
-    cargo-hack hack check --feature-powerset -p leon {{cargo-check-args}} --profile check-only
     {{cargo-bin}} check -p binstalk-downloader --no-default-features --profile check-only
     {{cargo-bin}} check -p cargo-binstall --no-default-features --features rustls {{cargo-check-args}} --profile check-only
     cargo-hack hack check -p binstalk-downloader \
         --feature-powerset \
-        --include-features default,json,gh-api-client \
+        --include-features default,json \
         --profile check-only \
         {{cargo-check-args}}
 
@@ -233,7 +212,9 @@ get-binary outdir=".": (get-output output-filename outdir)
     -chmod +x {{ outdir / output-filename }}
 
 e2e-test file *arguments: (get-binary "e2e-tests")
-    cd e2e-tests && env -u RUSTFLAGS bash {{file}}.sh {{output-filename}} {{arguments}}
+    echo "::group::{{file}}"
+    cd e2e-tests && env -u RUSTFLAGS -u CARGO_BUILD_TARGET bash {{file}}.sh {{output-filename}} {{arguments}}
+    echo "::endgroup::"
 
 e2e-test-live: (e2e-test "live")
 e2e-test-subcrate: (e2e-test "subcrate")
@@ -247,6 +228,13 @@ e2e-test-uninstall: (e2e-test "uninstall")
 e2e-test-no-track: (e2e-test "no-track")
 e2e-test-git: (e2e-test "git")
 e2e-test-registries: (e2e-test "registries")
+e2e-test-signing: (e2e-test "signing")
+e2e-test-continue-on-failure: (e2e-test "continue-on-failure")
+e2e-test-private-github-repo: (e2e-test "private-github-repo")
+e2e-test-self-install: (e2e-test "self-install")
+e2e-test-specific-binaries: (e2e-test "specific-binaries")
+e2e-test-skipping-required-bin: (e2e-test "skipping-required-bin")
+e2e-test-telemetry-confirm: (e2e-test "telemetry-confirm")
 
 # WinTLS (Windows in CI) does not have TLS 1.3 support
 [windows]
@@ -255,10 +243,13 @@ e2e-test-tls: (e2e-test "tls" "1.2")
 [macos]
 e2e-test-tls: (e2e-test "tls" "1.2") (e2e-test "tls" "1.3")
 
-e2e-tests: e2e-test-live e2e-test-manifest-path e2e-test-git e2e-test-other-repos e2e-test-strategies e2e-test-version-syntax e2e-test-upgrade e2e-test-tls e2e-test-self-upgrade-no-symlink e2e-test-uninstall e2e-test-subcrate e2e-test-no-track e2e-test-registries
+# e2e-test-self-install needs to be the last task to run, as it would consume the cargo-binstall binary
+e2e-tests: e2e-test-live e2e-test-manifest-path e2e-test-git e2e-test-other-repos e2e-test-strategies e2e-test-version-syntax e2e-test-upgrade e2e-test-tls e2e-test-self-upgrade-no-symlink e2e-test-uninstall e2e-test-subcrate e2e-test-no-track e2e-test-registries e2e-test-signing e2e-test-continue-on-failure e2e-test-private-github-repo e2e-test-specific-binaries e2e-test-skipping-required-bin e2e-test-telemetry-confirm e2e-test-self-install
 
 unit-tests: print-env
-    {{cargo-bin}} test {{cargo-build-args}}
+    cargo test --no-run --target {{target}}
+    cargo nextest run --target {{target}} --no-tests=pass {{cargo-nextest-additional-args}}
+    cargo test --doc --target {{target}}
 
 test: unit-tests build e2e-tests
 
@@ -273,7 +264,13 @@ fmt: print-env
 
 fmt-check: fmt
 
-lint: clippy fmt-check doc
+update-help-md: print-env
+    cargo run -p cargo-binstall --features clap-markdown unused-crate-name --markdown-help > HELP.md
+
+check-help-md:
+    git diff --exit-code HELP.md
+
+lint: clippy fmt-check doc update-help-md check-help-md
 
 # Rm dev-dependencies for `cargo-check` and clippy to speedup compilation.
 # This is a workaround for the cargo nightly option `-Z avoid-dev-deps`
@@ -288,6 +285,7 @@ package-dir:
     mkdir -p packages/prep
     cp crates/bin/LICENSE packages/prep
     cp README.md packages/prep
+    -cp minisign.pub packages/prep
 
 [macos]
 package-prepare: build package-dir
@@ -296,6 +294,9 @@ package-prepare: build package-dir
 
     just get-output detect-wasi{{output-ext}} packages/prep
     -just get-output detect-wasi.dSYM packages/prep
+
+    just get-output detect-targets{{output-ext}} packages/prep
+    -just get-output detect-targets.dSYM packages/prep
 
 # when https://github.com/rust-lang/cargo/pull/11384 lands, we can use
 # -just get-output cargo_binstall.dwp packages/prep
@@ -308,6 +309,9 @@ package-prepare: build package-dir
     just get-output detect-wasi packages/prep
     -cp {{output-folder}}/deps/detect_wasi-*.dwp packages/prep/detect_wasi.dwp
 
+    just get-output detect-targets packages/prep
+    -cp {{output-folder}}/deps/detect_target-*.dwp packages/prep/detect_target.dwp
+
 # underscored pdb name needs to remain for debuggers to find the file properly
 # read from deps because sometimes cargo doesn't copy the pdb to the output folder
 [windows]
@@ -318,19 +322,26 @@ package-prepare: build package-dir
     just get-output detect-wasi.exe packages/prep
     -just get-output deps/detect_wasi.pdb packages/prep
 
+    just get-output detect-targets.exe packages/prep
+    -just get-output deps/detect_target.pdb packages/prep
+
 # we don't get dSYM bundles for universal binaries; unsure if it's even a thing
 [macos]
 lipo-prepare: package-dir
     just target=aarch64-apple-darwin build get-binary packages/prep/arm64
-    just target=x86_64h-apple-darwin build get-binary packages/prep/x64
+    just target=x86_64-apple-darwin build get-binary packages/prep/x64
 
     just target=aarch64-apple-darwin get-binary packages/prep/arm64
-    just target=x86_64h-apple-darwin get-binary packages/prep/x64
+    just target=x86_64-apple-darwin get-binary packages/prep/x64
     lipo -create -output packages/prep/{{output-filename}} packages/prep/{arm64,x64}/{{output-filename}}
 
     just target=aarch64-apple-darwin get-output detect-wasi{{output-ext}} packages/prep/arm64
-    just target=x86_64h-apple-darwin get-output detect-wasi{{output-ext}} packages/prep/x64
+    just target=x86_64-apple-darwin get-output detect-wasi{{output-ext}} packages/prep/x64
     lipo -create -output packages/prep/detect-wasi{{output-ext}} packages/prep/{arm64,x64}/detect-wasi{{output-ext}}
+
+    just target=aarch64-apple-darwin get-output detect-targets{{output-ext}} packages/prep/arm64
+    just target=x86_64-apple-darwin get-output detect-targets{{output-ext}} packages/prep/x64
+    lipo -create -output packages/prep/detect-targets{{output-ext}} packages/prep/{arm64,x64}/detect-targets{{output-ext}}
 
     rm -rf packages/prep/{arm64,x64}
 
@@ -358,12 +369,17 @@ package-lipo: lipo-prepare
 # assuming x64 and arm64 packages are already built, extract and lipo them
 [macos]
 repackage-lipo: package-dir
+    set -euxo pipefail
+
     mkdir -p packages/prep/{arm64,x64}
-    cd packages/prep/x64 && unzip -o "../../cargo-binstall-x86_64h-apple-darwin.full.zip"
+    cd packages/prep/x64 && unzip -o "../../cargo-binstall-x86_64-apple-darwin.full.zip"
     cd packages/prep/arm64 && unzip -o "../../cargo-binstall-aarch64-apple-darwin.full.zip"
 
     lipo -create -output packages/prep/{{output-filename}} packages/prep/{arm64,x64}/{{output-filename}}
     lipo -create -output packages/prep/detect-wasi packages/prep/{arm64,x64}/detect-wasi
+    lipo -create -output packages/prep/detect-targets packages/prep/{arm64,x64}/detect-targets
+
+    ./packages/prep/{{output-filename}} -vV
 
     rm -rf packages/prep/{arm64,x64}
     cd packages/prep && zip -9 "../cargo-binstall-universal-apple-darwin.zip" {{output-filename}}
