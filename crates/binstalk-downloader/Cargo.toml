@@ -34,7 +34,7 @@ rc-zip-sync = { version = "4.3.5", features = [
     "lzma",
     "zstd",
 ] }
-reqwest = { version = "0.12.17", features = [
+reqwest = { version = "0.12.26", features = [
     "http2",
     "stream",
     "zstd",
@@ -61,7 +61,7 @@ tokio = { version = "1.46.1", features = [
 ], default-features = false }
 astral-tokio-tar = "0.5.6"
 tokio-util = { version = "0.7.8", features = ["io"] }
-tracing = "0.1.43"
+tracing = "0.1.44"
 hickory-resolver = { version = "0.25.1", optional = true, features = [
     "dnssec-ring",
 ] }

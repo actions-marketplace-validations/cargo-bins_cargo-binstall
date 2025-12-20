@@ -15,7 +15,7 @@ tokio = { version = "1.47.0", features = [
     "process",
     "sync",
 ], default-features = false }
-tracing = { version = "0.1.43", optional = true }
+tracing = { version = "0.1.44", optional = true }
 tracing-subscriber = { version = "0.3.22", features = [
     "fmt",
 ], default-features = false, optional = true }

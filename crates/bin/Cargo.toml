@@ -45,7 +45,7 @@ supports-color = "3.0.0"
 tempfile = "3.5.0"
 tokio = { version = "1.46.1", features = ["rt-multi-thread", "signal"], default-features = false }
 toml = "0.9.2"
-tracing = { version = "0.1.43", default-features = false }
+tracing = { version = "0.1.44", default-features = false }
 tracing-core = "0.1.32"
 tracing-log = { version = "0.2.0", default-features = false }
 tracing-subscriber = { version = "0.3.22", features = ["fmt", "json", "ansi"], default-features = false }

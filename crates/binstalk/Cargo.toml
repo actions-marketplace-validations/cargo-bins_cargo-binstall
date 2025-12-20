@@ -33,7 +33,7 @@ miette = "7.0.0"
 semver = { version = "1.0.17", features = ["serde"] }
 simple-git = { version = "0.2.18", optional = true }
 strum = "0.27.0"
-target-lexicon = { version = "0.13.0", features = ["std"] }
+target-lexicon = { version = "0.13.4", features = ["std"] }
 tempfile = "3.5.0"
 thiserror = "2.0.11"
 tokio = { version = "1.46.1", features = [
@@ -42,7 +42,7 @@ tokio = { version = "1.46.1", features = [
     "sync",
     "time",
 ], default-features = false }
-tracing = "0.1.43"
+tracing = "0.1.44"
 url = { version = "2.5.4", features = ["serde"] }
 zeroize = "1.8.1"
 
