@@ -3,7 +3,7 @@ name = "binstalk-downloader"
 description = "The binstall toolkit for downloading and extracting file"
 repository = "https://github.com/cargo-bins/cargo-binstall"
 documentation = "https://docs.rs/binstalk-downloader"
-version = "0.13.30"
+version = "0.13.31"
 rust-version = "1.79.0"
 authors = ["ryan <ryan@kurte.nz>"]
 edition = "2021"
@@ -130,7 +130,7 @@ cross-lang-fat-lto = ["zstd/fat-lto"]
 json = ["serde", "serde_json"]
 
 [target."cfg(windows)".dependencies]
-netdev = { version = "0.39.0", optional = true }
+netdev = { version = "0.40.0", optional = true }
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
