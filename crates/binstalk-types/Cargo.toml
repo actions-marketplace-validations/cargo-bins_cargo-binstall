@@ -19,7 +19,7 @@ semver = { version = "1.0.17", features = ["serde"] }
 serde = { version = "1.0.163", features = ["derive"] }
 strum = "0.27.0"
 strum_macros = "0.27.0"
-target-lexicon = { version = "0.13.0", features = ["std"] }
+target-lexicon = { version = "0.13.5", features = ["std"] }
 url = { version = "2.5.8", features = ["serde"] }
 
 [dev-dependencies]
