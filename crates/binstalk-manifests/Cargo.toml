@@ -26,4 +26,4 @@ url = { version = "2.5.8", features = ["serde"] }
 
 [dev-dependencies]
 detect-targets = { version = "0.1.80", path = "../detect-targets" }
-tempfile = "3.5.0"
+tempfile = "3.26.0"
