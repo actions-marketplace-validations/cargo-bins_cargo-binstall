@@ -7,25 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.5.24](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-git-repo-api-v0.5.23...binstalk-git-repo-api-v0.5.24) - 2025-08-30
+## [0.5.37](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-git-repo-api-v0.5.36...binstalk-git-repo-api-v0.5.37) - 2026-02-13
 
 ### Other
 
 - updated the following local packages: binstalk-downloader, binstalk-downloader
 
-## [0.5.23](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-git-repo-api-v0.5.22...binstalk-git-repo-api-v0.5.23) - 2025-07-25
+## [0.5.36](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-git-repo-api-v0.5.35...binstalk-git-repo-api-v0.5.36) - 2026-01-27
 
 ### Other
 
-- Disable unnecessary testing breaking ci ([#2228](https://github.com/cargo-bins/cargo-binstall/pull/2228))
-- *(deps)* bump tokio from 1.46.0 to 1.46.1 in the deps group ([#2222](https://github.com/cargo-bins/cargo-binstall/pull/2222))
-# Changelog
-All notable changes to this project will be documented in this file.
+- Fix changelog format ([#2454](https://github.com/cargo-bins/cargo-binstall/pull/2454))
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.5.35](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-git-repo-api-v0.5.34...binstalk-git-repo-api-v0.5.35) - 2026-01-23
 
-## [Unreleased]
+### Other
+
+- updated the following local packages: binstalk-downloader, binstalk-downloader
 
 ## [0.5.34](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-git-repo-api-v0.5.33...binstalk-git-repo-api-v0.5.34) - 2026-01-18
 
@@ -86,6 +84,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Other
 
 - updated the following local packages: binstalk-downloader, binstalk-downloader
+
+## [0.5.24](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-git-repo-api-v0.5.23...binstalk-git-repo-api-v0.5.24) - 2025-08-30
+
+### Other
+
+- updated the following local packages: binstalk-downloader, binstalk-downloader
+
+## [0.5.23](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-git-repo-api-v0.5.22...binstalk-git-repo-api-v0.5.23) - 2025-07-25
+
+### Other
+
+- Disable unnecessary testing breaking ci ([#2228](https://github.com/cargo-bins/cargo-binstall/pull/2228))
+- *(deps)* bump tokio from 1.46.0 to 1.46.1 in the deps group ([#2222](https://github.com/cargo-bins/cargo-binstall/pull/2222))
 
 ## [0.5.22](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-git-repo-api-v0.5.21...binstalk-git-repo-api-v0.5.22) - 2025-06-06
 

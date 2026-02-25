@@ -7,48 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.38](https://github.com/cargo-bins/cargo-binstall/compare/detect-wasi-v1.0.37...detect-wasi-v1.0.38) - 2025-09-06
+## [1.0.48](https://github.com/cargo-bins/cargo-binstall/compare/detect-wasi-v1.0.47...detect-wasi-v1.0.48) - 2026-02-13
 
 ### Other
 
 - update Cargo.lock dependencies
 
-## [1.0.37](https://github.com/cargo-bins/cargo-binstall/compare/detect-wasi-v1.0.36...detect-wasi-v1.0.37) - 2025-08-30
+## [1.0.47](https://github.com/cargo-bins/cargo-binstall/compare/detect-wasi-v1.0.46...detect-wasi-v1.0.47) - 2026-01-27
 
 ### Other
 
-- update Cargo.lock dependencies
-
-## [1.0.36](https://github.com/cargo-bins/cargo-binstall/compare/detect-wasi-v1.0.35...detect-wasi-v1.0.36) - 2025-08-24
-
-### Other
-
-- update Cargo.lock dependencies
-
-## [1.0.35](https://github.com/cargo-bins/cargo-binstall/compare/detect-wasi-v1.0.34...detect-wasi-v1.0.35) - 2025-08-22
-
-### Other
-
-- update Cargo.lock dependencies
-
-## [1.0.34](https://github.com/cargo-bins/cargo-binstall/compare/detect-wasi-v1.0.33...detect-wasi-v1.0.34) - 2025-08-01
-
-### Other
-
-- update Cargo.lock dependencies
-
-## [1.0.33](https://github.com/cargo-bins/cargo-binstall/compare/detect-wasi-v1.0.32...detect-wasi-v1.0.33) - 2025-07-25
-
-### Other
-
-- update Cargo.lock dependencies
-# Changelog
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
+- Fix changelog format ([#2454](https://github.com/cargo-bins/cargo-binstall/pull/2454))
 
 ## [1.0.46](https://github.com/cargo-bins/cargo-binstall/compare/detect-wasi-v1.0.45...detect-wasi-v1.0.46) - 2026-01-18
 
@@ -93,6 +62,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update Cargo.lock dependencies
 
 ## [1.0.39](https://github.com/cargo-bins/cargo-binstall/compare/detect-wasi-v1.0.38...detect-wasi-v1.0.39) - 2025-09-14
+
+### Other
+
+- update Cargo.lock dependencies
+
+## [1.0.38](https://github.com/cargo-bins/cargo-binstall/compare/detect-wasi-v1.0.37...detect-wasi-v1.0.38) - 2025-09-06
+
+### Other
+
+- update Cargo.lock dependencies
+
+## [1.0.37](https://github.com/cargo-bins/cargo-binstall/compare/detect-wasi-v1.0.36...detect-wasi-v1.0.37) - 2025-08-30
+
+### Other
+
+- update Cargo.lock dependencies
+
+## [1.0.36](https://github.com/cargo-bins/cargo-binstall/compare/detect-wasi-v1.0.35...detect-wasi-v1.0.36) - 2025-08-24
+
+### Other
+
+- update Cargo.lock dependencies
+
+## [1.0.35](https://github.com/cargo-bins/cargo-binstall/compare/detect-wasi-v1.0.34...detect-wasi-v1.0.35) - 2025-08-22
+
+### Other
+
+- update Cargo.lock dependencies
+
+## [1.0.34](https://github.com/cargo-bins/cargo-binstall/compare/detect-wasi-v1.0.33...detect-wasi-v1.0.34) - 2025-08-01
+
+### Other
+
+- update Cargo.lock dependencies
+
+## [1.0.33](https://github.com/cargo-bins/cargo-binstall/compare/detect-wasi-v1.0.32...detect-wasi-v1.0.33) - 2025-07-25
 
 ### Other
 

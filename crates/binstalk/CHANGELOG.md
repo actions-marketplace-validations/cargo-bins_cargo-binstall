@@ -7,60 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.28.46](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.45...binstalk-v0.28.46) - 2025-09-06
+## [0.28.67](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.66...binstalk-v0.28.67) - 2026-02-13
 
 ### Other
 
-- updated the following local packages: detect-targets, binstalk-bins
+- updated the following local packages: binstalk-downloader, binstalk-fetchers, cargo-toml-workspace, binstalk-registry, detect-targets, binstalk-git-repo-api
 
-## [0.28.45](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.44...binstalk-v0.28.45) - 2025-08-30
-
-### Other
-
-- updated the following local packages: binstalk-downloader, binstalk-git-repo-api, binstalk-fetchers, binstalk-registry
-
-## [0.28.44](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.43...binstalk-v0.28.44) - 2025-08-30
+## [0.28.66](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.65...binstalk-v0.28.66) - 2026-01-27
 
 ### Other
 
-- updated the following local packages: detect-targets
+- Fix changelog format ([#2454](https://github.com/cargo-bins/cargo-binstall/pull/2454))
 
-## [0.28.43](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.42...binstalk-v0.28.43) - 2025-08-24
+## [0.28.65](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.64...binstalk-v0.28.65) - 2026-01-23
 
-### Other
+### Added
 
-- updated the following local packages: detect-targets
-
-## [0.28.42](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.41...binstalk-v0.28.42) - 2025-08-22
-
-### Other
-
-- updated the following local packages: detect-targets
-
-## [0.28.41](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.40...binstalk-v0.28.41) - 2025-08-09
-
-### Other
-
-- updated the following local packages: detect-targets
-
-## [0.28.40](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.39...binstalk-v0.28.40) - 2025-08-01
-
-### Other
-
-- updated the following local packages: detect-targets
-
-## [0.28.39](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.38...binstalk-v0.28.39) - 2025-07-25
-
-### Other
-
-- *(deps)* bump tokio from 1.46.0 to 1.46.1 in the deps group ([#2222](https://github.com/cargo-bins/cargo-binstall/pull/2222))
-# Changelog
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
+- Support `cfg` expressions for overrides. ([#2435](https://github.com/cargo-bins/cargo-binstall/pull/2435))
 
 ## [0.28.64](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.63...binstalk-v0.28.64) - 2026-01-18
 
@@ -170,6 +133,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Other
 
 - updated the following local packages: binstalk-downloader, detect-targets, binstalk-git-repo-api, binstalk-fetchers, binstalk-registry
+
+## [0.28.46](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.45...binstalk-v0.28.46) - 2025-09-06
+
+### Other
+
+- updated the following local packages: detect-targets, binstalk-bins
+
+## [0.28.45](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.44...binstalk-v0.28.45) - 2025-08-30
+
+### Other
+
+- updated the following local packages: binstalk-downloader, binstalk-git-repo-api, binstalk-fetchers, binstalk-registry
+
+## [0.28.44](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.43...binstalk-v0.28.44) - 2025-08-30
+
+### Other
+
+- updated the following local packages: detect-targets
+
+## [0.28.43](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.42...binstalk-v0.28.43) - 2025-08-24
+
+### Other
+
+- updated the following local packages: detect-targets
+
+## [0.28.42](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.41...binstalk-v0.28.42) - 2025-08-22
+
+### Other
+
+- updated the following local packages: detect-targets
+
+## [0.28.41](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.40...binstalk-v0.28.41) - 2025-08-09
+
+### Other
+
+- updated the following local packages: detect-targets
+
+## [0.28.40](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.39...binstalk-v0.28.40) - 2025-08-01
+
+### Other
+
+- updated the following local packages: detect-targets
+
+## [0.28.39](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.38...binstalk-v0.28.39) - 2025-07-25
+
+### Other
+
+- *(deps)* bump tokio from 1.46.0 to 1.46.1 in the deps group ([#2222](https://github.com/cargo-bins/cargo-binstall/pull/2222))
 
 ## [0.28.38](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.37...binstalk-v0.28.38) - 2025-06-22
 

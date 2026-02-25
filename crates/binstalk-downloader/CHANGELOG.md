@@ -7,24 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.13.22](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-downloader-v0.13.21...binstalk-downloader-v0.13.22) - 2025-08-30
+## [0.13.35](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-downloader-v0.13.34...binstalk-downloader-v0.13.35) - 2026-02-13
 
 ### Other
 
-- Upgrade compression libraries ([#2289](https://github.com/cargo-bins/cargo-binstall/pull/2289))
+- *(deps)* bump bytes from 1.11.0 to 1.11.1 ([#2478](https://github.com/cargo-bins/cargo-binstall/pull/2478))
+- Enable features system-proxy and charset of reqwest by default ([#2474](https://github.com/cargo-bins/cargo-binstall/pull/2474))
 
-## [0.13.21](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-downloader-v0.13.20...binstalk-downloader-v0.13.21) - 2025-07-25
+## [0.13.34](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-downloader-v0.13.33...binstalk-downloader-v0.13.34) - 2026-01-27
 
 ### Other
 
-- *(deps)* bump tokio from 1.46.0 to 1.46.1 in the deps group ([#2222](https://github.com/cargo-bins/cargo-binstall/pull/2222))
-# Changelog
-All notable changes to this project will be documented in this file.
+- Fix changelog format ([#2454](https://github.com/cargo-bins/cargo-binstall/pull/2454))
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.13.33](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-downloader-v0.13.32...binstalk-downloader-v0.13.33) - 2026-01-23
 
-## [Unreleased]
+### Other
+
+- updated the following local packages: binstalk-types
 
 ## [0.13.32](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-downloader-v0.13.31...binstalk-downloader-v0.13.32) - 2026-01-18
 
@@ -91,6 +91,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - respect socks5 in `https_proxy` ([#2306](https://github.com/cargo-bins/cargo-binstall/pull/2306))
+
+## [0.13.22](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-downloader-v0.13.21...binstalk-downloader-v0.13.22) - 2025-08-30
+
+### Other
+
+- Upgrade compression libraries ([#2289](https://github.com/cargo-bins/cargo-binstall/pull/2289))
+
+## [0.13.21](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-downloader-v0.13.20...binstalk-downloader-v0.13.21) - 2025-07-25
+
+### Other
+
+- *(deps)* bump tokio from 1.46.0 to 1.46.1 in the deps group ([#2222](https://github.com/cargo-bins/cargo-binstall/pull/2222))
 
 ## [0.13.20](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-downloader-v0.13.19...binstalk-downloader-v0.13.20) - 2025-06-06
 
