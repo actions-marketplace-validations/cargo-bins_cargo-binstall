@@ -10,8 +10,8 @@ license = "Apache-2.0 OR MIT"
 rust-version = "1.65.0"
 
 [dependencies]
-reflink-copy = "0.1.15"
-tempfile = "3.5.0"
+reflink-copy = "0.1.29"
+tempfile = "3.27.0"
 tracing = "0.1.43"
 
 [target.'cfg(windows)'.dependencies]
