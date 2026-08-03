@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.46](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-git-repo-api-v0.5.45...binstalk-git-repo-api-v0.5.46) - 2026-07-24
+
+### Other
+
+- *(deps)* bump the deps group across 1 directory with 2 updates ([#2612](https://github.com/cargo-bins/cargo-binstall/pull/2612))
+
+## [0.5.45](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-git-repo-api-v0.5.44...binstalk-git-repo-api-v0.5.45) - 2026-07-11
+
+### Other
+
+- updated the following local packages: binstalk-downloader, binstalk-downloader
+
+## [0.5.44](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-git-repo-api-v0.5.43...binstalk-git-repo-api-v0.5.44) - 2026-06-20
+
+### Other
+
+- updated the following local packages: binstalk-downloader, binstalk-downloader
+
+## [0.5.43](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-git-repo-api-v0.5.42...binstalk-git-repo-api-v0.5.43) - 2026-06-06
+
+### Other
+
+- *(deps)* bump the deps group with 2 updates ([#2566](https://github.com/cargo-bins/cargo-binstall/pull/2566))
+
+## [0.5.42](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-git-repo-api-v0.5.41...binstalk-git-repo-api-v0.5.42) - 2026-05-06
+
+### Other
+
+- updated the following local packages: binstalk-downloader, binstalk-downloader
+
+## [0.5.41](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-git-repo-api-v0.5.40...binstalk-git-repo-api-v0.5.41) - 2026-05-02
+
+### Other
+
+- updated the following local packages: binstalk-downloader, binstalk-downloader
+
+## [0.5.40](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-git-repo-api-v0.5.39...binstalk-git-repo-api-v0.5.40) - 2026-04-10
+
+### Other
+
+- *(deps)* bump the deps group with 2 updates ([#2525](https://github.com/cargo-bins/cargo-binstall/pull/2525))
+
+## [0.5.39](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-git-repo-api-v0.5.38...binstalk-git-repo-api-v0.5.39) - 2026-03-21
+
+### Other
+
+- updated the following local packages: binstalk-downloader, binstalk-downloader
+
 ## [0.5.38](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-git-repo-api-v0.5.37...binstalk-git-repo-api-v0.5.38) - 2026-02-28
 
 ### Other

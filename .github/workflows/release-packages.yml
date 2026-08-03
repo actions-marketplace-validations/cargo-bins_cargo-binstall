@@ -43,6 +43,7 @@ jobs:
           - { o: ubuntu-latest, t: aarch64-unknown-linux-musl, c: true }
           - { o: windows-latest, t: x86_64-pc-windows-msvc }
           - { o: windows-11-arm, t: aarch64-pc-windows-msvc }
+          - { o: ubuntu-latest, t: riscv64gc-unknown-linux-musl, c: true }
 
     name: ${{ matrix.t }}
     runs-on: ${{ matrix.o }}
@@ -56,7 +57,7 @@ jobs:
       JUST_ENABLE_H3: true
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Override release profile lto settings
         if: inputs.CARGO_PROFILE_RELEASE_LTO
@@ -69,8 +70,6 @@ jobs:
         shell: bash
 
       - uses: ./.github/actions/just-setup
-        with:
-          tools: rsign2,rage
         env:
           # just-setup use binstall to install sccache,
           # which works better when we provide it with GITHUB_TOKEN.
@@ -78,9 +77,6 @@ jobs:
 
       - run: just toolchain rust-src
 
-      - uses: actions/download-artifact@v8
-        with:
-          name: minisign.pub
       - run: just package
       - if: runner.os == 'Windows'
         run: Get-ChildItem packages/
@@ -92,15 +88,6 @@ jobs:
         run: just e2e-tests
         env:
           GITHUB_TOKEN: ${{ secrets.CI_RELEASE_TEST_GITHUB_TOKEN }}
-
-      - uses: actions/download-artifact@v8
-        with:
-          name: minisign.key.age
-      - name: Sign package
-        env:
-          AGE_KEY_SECRET: ${{ secrets.AGE_KEY_SECRET }}
-        shell: bash
-        run: .github/scripts/ephemeral-sign.sh packages/cargo-binstall-*
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
@@ -126,11 +113,11 @@ jobs:
       JUST_FOR_RELEASE: true
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@v2.85.3
         with:
-          tool: just,rsign2,rage
+          tool: just
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -143,20 +130,9 @@ jobs:
           name: package-aarch64-apple-darwin
           path: packages/
 
-      - uses: actions/download-artifact@v8
-        with:
-          name: minisign.pub
       - run: ls -shalr packages/
       - run: just repackage-lipo
       - run: ls -shal packages/
-
-      - uses: actions/download-artifact@v8
-        with:
-          name: minisign.key.age
-      - env:
-          AGE_KEY_SECRET: ${{ secrets.AGE_KEY_SECRET }}
-        shell: bash
-        run: .github/scripts/ephemeral-sign.sh packages/cargo-binstall-universal-*
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7

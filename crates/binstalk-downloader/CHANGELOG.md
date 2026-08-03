@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.44](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-downloader-v0.13.43...binstalk-downloader-v0.13.44) - 2026-07-24
+
+### Other
+
+- *(deps)* bump the deps group across 1 directory with 2 updates ([#2612](https://github.com/cargo-bins/cargo-binstall/pull/2612))
+
+## [0.13.43](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-downloader-v0.13.42...binstalk-downloader-v0.13.43) - 2026-07-11
+
+### Other
+
+- Prefer ipv6 ([#2595](https://github.com/cargo-bins/cargo-binstall/pull/2595))
+
+## [0.13.42](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-downloader-v0.13.41...binstalk-downloader-v0.13.42) - 2026-06-20
+
+### Other
+
+- *(deps)* bump the deps group with 2 updates ([#2589](https://github.com/cargo-bins/cargo-binstall/pull/2589))
+
+## [0.13.41](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-downloader-v0.13.40...binstalk-downloader-v0.13.41) - 2026-06-06
+
+### Other
+
+- *(deps)* bump netdev from 0.43.0 to 0.44.0 in the deps group ([#2581](https://github.com/cargo-bins/cargo-binstall/pull/2581))
+- IPv6 DNS issue ([#2579](https://github.com/cargo-bins/cargo-binstall/pull/2579))
+- Remove quad9 dns fallback ([#2572](https://github.com/cargo-bins/cargo-binstall/pull/2572))
+- *(deps)* bump the deps group with 2 updates ([#2566](https://github.com/cargo-bins/cargo-binstall/pull/2566))
+
+## [0.13.40](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-downloader-v0.13.39...binstalk-downloader-v0.13.40) - 2026-05-06
+
+### Other
+
+- Disable dnssec and set dns timeout to 750ms ([#2560](https://github.com/cargo-bins/cargo-binstall/pull/2560))
+
+## [0.13.39](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-downloader-v0.13.38...binstalk-downloader-v0.13.39) - 2026-05-02
+
+### Fixed
+
+- fallback to hickory_resolver's default config if reading /etc/resolv.conf fails ([#2550](https://github.com/cargo-bins/cargo-binstall/pull/2550))
+
+### Other
+
+- *(deps)* bump hickory-resolver from 0.26.0 to 0.26.1 in the deps group ([#2555](https://github.com/cargo-bins/cargo-binstall/pull/2555))
+- *(deps)* bump the deps group with 4 updates ([#2544](https://github.com/cargo-bins/cargo-binstall/pull/2544))
+- Fix clippy in async_extractor ([#2538](https://github.com/cargo-bins/cargo-binstall/pull/2538))
+
+## [0.13.38](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-downloader-v0.13.37...binstalk-downloader-v0.13.38) - 2026-04-10
+
+### Other
+
+- *(deps)* bump the deps group with 2 updates ([#2525](https://github.com/cargo-bins/cargo-binstall/pull/2525))
+
+## [0.13.37](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-downloader-v0.13.36...binstalk-downloader-v0.13.37) - 2026-03-21
+
+### Other
+
+- *(deps)* bump netdev from 0.40.1 to 0.41.0 in the deps group ([#2509](https://github.com/cargo-bins/cargo-binstall/pull/2509))
+- *(deps)* bump astral-tokio-tar from 0.5.6 to 0.6.0 ([#2504](https://github.com/cargo-bins/cargo-binstall/pull/2504))
+
 ## [0.13.36](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-downloader-v0.13.35...binstalk-downloader-v0.13.36) - 2026-02-28
 
 ### Other

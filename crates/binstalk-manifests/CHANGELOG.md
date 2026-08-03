@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.4](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-manifests-v0.19.3...binstalk-manifests-v0.19.4) - 2026-07-24
+
+### Other
+
+- *(deps)* bump the deps group across 1 directory with 2 updates ([#2612](https://github.com/cargo-bins/cargo-binstall/pull/2612))
+
+## [0.19.3](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-manifests-v0.19.2...binstalk-manifests-v0.19.3) - 2026-07-11
+
+### Other
+
+- updated the following local packages: detect-targets
+
+## [0.19.2](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-manifests-v0.19.1...binstalk-manifests-v0.19.2) - 2026-06-20
+
+### Other
+
+- updated the following local packages: detect-targets
+
+## [0.19.1](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-manifests-v0.19.0...binstalk-manifests-v0.19.1) - 2026-06-06
+
+### Other
+
+- updated the following local packages: detect-targets
+
+## [0.19.0](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-manifests-v0.18.0...binstalk-manifests-v0.19.0) - 2026-05-02
+
+### Added
+
+- Support cargo config.toml include field ([#2531](https://github.com/cargo-bins/cargo-binstall/pull/2531))
+
+## [0.18.0](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-manifests-v0.17.30...binstalk-manifests-v0.18.0) - 2026-04-10
+
+### Added
+
+- support `cargo:token` auth for private registries ([#2526](https://github.com/cargo-bins/cargo-binstall/pull/2526))
+
+### Other
+
+- *(deps)* bump the deps group with 2 updates ([#2525](https://github.com/cargo-bins/cargo-binstall/pull/2525))
+
+## [0.17.30](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-manifests-v0.17.29...binstalk-manifests-v0.17.30) - 2026-03-21
+
+### Other
+
+- updated the following local packages: detect-targets
+
+## [0.17.29](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-manifests-v0.17.28...binstalk-manifests-v0.17.29) - 2026-03-07
+
+### Other
+
+- updated the following local packages: detect-targets
+
 ## [0.17.28](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-manifests-v0.17.27...binstalk-manifests-v0.17.28) - 2026-02-28
 
 ### Other

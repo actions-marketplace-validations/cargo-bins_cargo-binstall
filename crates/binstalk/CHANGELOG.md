@@ -7,6 +7,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.79](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.78...binstalk-v0.28.79) - 2026-07-24
+
+### Other
+
+- *(deps)* bump the deps group across 1 directory with 2 updates ([#2612](https://github.com/cargo-bins/cargo-binstall/pull/2612))
+
+## [0.28.78](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.77...binstalk-v0.28.78) - 2026-07-11
+
+### Fixed
+
+- honour --version for git or local manifest ([#2598](https://github.com/cargo-bins/cargo-binstall/pull/2598))
+
+## [0.28.77](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.76...binstalk-v0.28.77) - 2026-06-20
+
+### Other
+
+- *(deps)* bump the deps group with 2 updates ([#2589](https://github.com/cargo-bins/cargo-binstall/pull/2589))
+
+## [0.28.76](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.75...binstalk-v0.28.76) - 2026-06-06
+
+### Added
+
+- add os-name template variable for pkg-url and bin-dir ([#2570](https://github.com/cargo-bins/cargo-binstall/pull/2570))
+
+### Other
+
+- *(deps)* bump the deps group with 2 updates ([#2566](https://github.com/cargo-bins/cargo-binstall/pull/2566))
+
+## [0.28.75](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.74...binstalk-v0.28.75) - 2026-05-06
+
+### Other
+
+- updated the following local packages: binstalk-downloader, binstalk-git-repo-api, binstalk-fetchers, binstalk-registry
+
+## [0.28.74](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.73...binstalk-v0.28.74) - 2026-05-02
+
+### Other
+
+- Fix Error message outputs ANSI escape sequences ([#2556](https://github.com/cargo-bins/cargo-binstall/pull/2556))
+
+## [0.28.73](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.72...binstalk-v0.28.73) - 2026-04-13
+
+### Other
+
+- Remove GITHUB_TOKEN and GH_TOKEN when installing from source ([#2533](https://github.com/cargo-bins/cargo-binstall/pull/2533))
+
+## [0.28.72](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.71...binstalk-v0.28.72) - 2026-04-10
+
+### Added
+
+- support `cargo:token` auth for private registries ([#2526](https://github.com/cargo-bins/cargo-binstall/pull/2526))
+
+### Other
+
+- *(deps)* bump the deps group with 2 updates ([#2525](https://github.com/cargo-bins/cargo-binstall/pull/2525))
+
+## [0.28.71](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.70...binstalk-v0.28.71) - 2026-03-28
+
+### Other
+
+- updated the following local packages: binstalk-registry
+
+## [0.28.70](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.69...binstalk-v0.28.70) - 2026-03-21
+
+### Other
+
+- updated the following local packages: binstalk-downloader, detect-targets, binstalk-git-repo-api, binstalk-fetchers, binstalk-registry
+
+## [0.28.69](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.68...binstalk-v0.28.69) - 2026-03-07
+
+### Other
+
+- updated the following local packages: detect-targets
+
 ## [0.28.68](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-v0.28.67...binstalk-v0.28.68) - 2026-02-28
 
 ### Other

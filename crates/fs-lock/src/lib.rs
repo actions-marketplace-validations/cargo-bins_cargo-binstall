@@ -13,29 +13,26 @@ use cfg_if::cfg_if;
 
 cfg_if! {
     if #[cfg(any(target_os = "android", target_os = "illumos"))] {
-        use fs4::fs_std::FileExt;
+        use fs4::FileExt;
 
         fn lock_exclusive(file: &File) -> io::Result<()> {
-            FileExt::lock_exclusive(file)
+            FileExt::lock(file)
         }
 
         fn lock_shared(file: &File) -> io::Result<()> {
             FileExt::lock_shared(file)
         }
 
-        fn map_try_lock_result(result: io::Result<bool>) -> Result<(), TryLockError> {
+        fn map_try_lock_result(result: Result<(), fs4::TryLockError>) -> Result<(), TryLockError> {
             match result {
-                Ok(true) => Ok(()),
-                Ok(false) => Err(TryLockError::WouldBlock),
-                Err(e) if e.raw_os_error() == fs4::lock_contended_error().raw_os_error() => {
-                    Err(TryLockError::WouldBlock)
-                }
-                Err(e) => Err(TryLockError::Error(e)),
+                Ok(()) => Ok(()),
+                Err(fs4::TryLockError::WouldBlock) => Err(TryLockError::WouldBlock),
+                Err(fs4::TryLockError::Error(e)) => Err(TryLockError::Error(e)),
             }
         }
 
         fn try_lock_exclusive(file: &File) -> Result<(), TryLockError> {
-            map_try_lock_result(FileExt::try_lock_exclusive(file))
+            map_try_lock_result(FileExt::try_lock(file))
         }
 
         fn try_lock_shared(file: &File) -> Result<(), TryLockError> {
@@ -139,6 +136,16 @@ impl FileLock {
         }
         self
     }
+
+    pub fn get_file_path(&self) -> Option<&Path> {
+        cfg_if! {
+            if #[cfg(feature = "tracing")] {
+                self.1.as_deref()
+            } else {
+                None
+            }
+        }
+    }
 }
 
 impl Drop for FileLock {
@@ -194,6 +201,19 @@ impl io::Write for FileLock {
     }
 }
 
+impl io::Write for &FileLock {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        (&self.0).write(buf)
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        (&self.0).flush()
+    }
+
+    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+        (&self.0).write_vectored(bufs)
+    }
+}
+
 impl io::Read for FileLock {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.0.read(buf)
@@ -201,6 +221,32 @@ impl io::Read for FileLock {
 
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         self.0.read_vectored(bufs)
+    }
+
+    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
+        self.0.read_to_end(buf)
+    }
+
+    fn read_to_string(&mut self, buf: &mut String) -> io::Result<usize> {
+        self.0.read_to_string(buf)
+    }
+}
+
+impl io::Read for &FileLock {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        (&self.0).read(buf)
+    }
+
+    fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        (&self.0).read_vectored(bufs)
+    }
+
+    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
+        (&self.0).read_to_end(buf)
+    }
+
+    fn read_to_string(&mut self, buf: &mut String) -> io::Result<usize> {
+        (&self.0).read_to_string(buf)
     }
 }
 
@@ -214,5 +260,18 @@ impl io::Seek for FileLock {
     }
     fn stream_position(&mut self) -> io::Result<u64> {
         self.0.stream_position()
+    }
+}
+
+impl io::Seek for &FileLock {
+    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
+        (&self.0).seek(pos)
+    }
+
+    fn rewind(&mut self) -> io::Result<()> {
+        (&self.0).rewind()
+    }
+    fn stream_position(&mut self) -> io::Result<u64> {
+        (&self.0).stream_position()
     }
 }

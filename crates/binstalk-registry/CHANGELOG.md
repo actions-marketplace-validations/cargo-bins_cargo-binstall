@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.6](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-registry-v0.12.5...binstalk-registry-v0.12.6) - 2026-07-24
+
+### Other
+
+- *(deps)* bump the deps group across 1 directory with 2 updates ([#2612](https://github.com/cargo-bins/cargo-binstall/pull/2612))
+
+## [0.12.5](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-registry-v0.12.4...binstalk-registry-v0.12.5) - 2026-07-11
+
+### Other
+
+- updated the following local packages: binstalk-downloader, binstalk-downloader, cargo-toml-workspace
+
+## [0.12.4](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-registry-v0.12.3...binstalk-registry-v0.12.4) - 2026-06-20
+
+### Other
+
+- updated the following local packages: binstalk-downloader, binstalk-downloader
+
+## [0.12.3](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-registry-v0.12.2...binstalk-registry-v0.12.3) - 2026-06-06
+
+### Other
+
+- *(deps)* bump the deps group with 2 updates ([#2566](https://github.com/cargo-bins/cargo-binstall/pull/2566))
+
+## [0.12.2](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-registry-v0.12.1...binstalk-registry-v0.12.2) - 2026-05-06
+
+### Other
+
+- updated the following local packages: binstalk-downloader, binstalk-downloader
+
+## [0.12.1](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-registry-v0.12.0...binstalk-registry-v0.12.1) - 2026-05-02
+
+### Other
+
+- updated the following local packages: binstalk-downloader, binstalk-downloader
+
+## [0.12.0](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-registry-v0.11.39...binstalk-registry-v0.12.0) - 2026-04-10
+
+### Added
+
+- support `cargo:token` auth for private registries ([#2526](https://github.com/cargo-bins/cargo-binstall/pull/2526))
+
+### Other
+
+- *(deps)* bump the deps group with 2 updates ([#2525](https://github.com/cargo-bins/cargo-binstall/pull/2525))
+
+## [0.11.39](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-registry-v0.11.38...binstalk-registry-v0.11.39) - 2026-03-28
+
+### Other
+
+- *(deps)* bump the deps group with 2 updates ([#2518](https://github.com/cargo-bins/cargo-binstall/pull/2518))
+
+## [0.11.38](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-registry-v0.11.37...binstalk-registry-v0.11.38) - 2026-03-21
+
+### Other
+
+- updated the following local packages: binstalk-downloader, binstalk-downloader
+
 ## [0.11.37](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-registry-v0.11.36...binstalk-registry-v0.11.37) - 2026-02-28
 
 ### Other
