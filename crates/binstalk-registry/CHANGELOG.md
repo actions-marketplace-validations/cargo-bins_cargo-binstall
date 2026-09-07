@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.8](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-registry-v0.12.7...binstalk-registry-v0.12.8) - 2026-09-05
+
+### Other
+
+- updated the following local packages: binstalk-downloader, binstalk-downloader
+
+## [0.12.7](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-registry-v0.12.6...binstalk-registry-v0.12.7) - 2026-08-22
+
+### Added
+
+- add --allow-insecure-http to permit plaintext HTTP ([#2635](https://github.com/cargo-bins/cargo-binstall/pull/2635))
+
 ## [0.12.6](https://github.com/cargo-bins/cargo-binstall/compare/binstalk-registry-v0.12.5...binstalk-registry-v0.12.6) - 2026-07-24
 
 ### Other
